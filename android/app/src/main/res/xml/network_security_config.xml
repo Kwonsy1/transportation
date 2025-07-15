@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">map.naver.com</domain>
+        <domain includeSubdomains="true">map.naver.net</domain>
+        <domain includeSubdomains="true">oapi.map.naver.com</domain>
+        <domain includeSubdomains="true">navermaps.github.io</domain>
+        <domain includeSubdomains="true">ncloud.com</domain>
+        <!-- 개발용 localhost 허용 -->
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+    </domain-config>
+    
+    <!-- 기본적으로는 HTTPS만 허용 -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>
