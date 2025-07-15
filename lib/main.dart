@@ -1,12 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'constants/app_constants.dart';
+import 'constants/api_constants.dart';
 import 'providers/subway_provider.dart';
 import 'providers/location_provider.dart';
 import 'screens/home_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // 네이버 맵 SDK 초기화
+  await _initializeNaverMap();
+  
   runApp(const TransportationApp());
+}
+
+/// 네이버 맵 SDK 초기화
+Future<void> _initializeNaverMap() async {
+  try {
+    await NaverMapSdk.instance.initialize(
+      clientId: ApiConstants.naverMapClientId,
+      onAuthFailed: (exception) {
+        print('네이버맵 인증 실패: $exception');
+        // 인증 실패 시 전역 처리 또는 대체 맵 서비스 사용 가능
+      },
+    );
+    print('네이버 맵 SDK 초기화 성공');
+  } catch (e) {
+    print('네이버 맵 SDK 초기화 오류: $e');
+    // 오류 발생 시 대체 맵 서비스 사용 가능
+  }
 }
 
 /// 앱 시작 시 전역 위치 초기화

@@ -18,7 +18,7 @@ Flutter로 개발된 국토교통부 지하철 정보 API를 활용한 지하철
 - **Framework**: Flutter 3.8.1+
 - **상태 관리**: Provider
 - **HTTP 통신**: Dio
-- **지도**: 네이버 지도 API (WebView)
+- **지도**: 네이버 지도 네이티브 SDK (flutter_naver_map)
 - **위치 서비스**: Geolocator, Permission Handler
 - **JSON 직렬화**: json_annotation, json_serializable
 
@@ -53,7 +53,20 @@ cd transportation
 flutter pub get
 ```
 
-### 3. API 키 설정
+### 3. 네이버 지도 네이티브 SDK 설정
+Git LFS 설정 (iOS 필수):
+```bash
+# macOS에서 Homebrew로 설치
+brew install git-lfs
+git lfs install
+
+# iOS 의존성 업데이트
+cd ios
+pod update NMapsMap
+cd ..
+```
+
+### 4. API 키 설정
 `lib/constants/api_constants.dart` 파일에서 다음 부분을 실제 API 키로 교체:
 
 ```dart
@@ -67,15 +80,17 @@ class ApiConstants {
 }
 ```
 
-### 4. JSON 직렬화 코드 생성
+### 5. JSON 직렬화 코드 생성
 ```bash
 flutter packages pub run build_runner build --delete-conflicting-outputs
 ```
 
-### 5. 앱 실행
+### 6. 앱 실행
 ```bash
 flutter run
 ```
+
+**새로운 네이티브 네이버 지도 기능을 사용하려면 `NAVER_NATIVE_MAP_GUIDE.md`를 참고하세요!**
 
 ## 📁 프로젝트 구조
 
@@ -101,7 +116,9 @@ lib/
 │   ├── station_search_screen.dart
 │   ├── station_detail_screen.dart
 │   ├── nearby_stations_screen.dart
-│   ├── map_screen.dart
+│   ├── naver_native_map_screen.dart  # 네이버 네이티브 지도 (신규)
+│   ├── map_screen.dart               # 네이버 지도 웹뷰 (기존)
+│   ├── google_map_screen.dart        # OpenStreetMap (대체용)
 │   └── favorites_screen.dart
 ├── widgets/            # 재사용 가능한 위젯들
 │   ├── station_card.dart
@@ -124,7 +141,8 @@ Flutter 3.8.1+ 권장
 ```yaml
 dependencies:
   dio: ^5.4.0                    # HTTP 클라이언트
-  webview_flutter: ^4.4.2       # 웹뷰 (네이버 지도)
+  flutter_naver_map: ^1.3.2      # 네이버 지도 네이티브 SDK
+  webview_flutter: ^4.4.2       # 웹뷰 (대체 지도 서비스용)
   geolocator: ^10.1.0           # 위치 서비스
   permission_handler: ^11.1.0    # 권한 관리
   provider: ^6.1.1              # 상태 관리

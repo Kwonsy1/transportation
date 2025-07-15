@@ -46,6 +46,12 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	
+	<!-- 네이버 맵 설정 -->
+	<key>NMFClientId</key>
+	<string>YOUR_NAVER_MAP_CLIENT_ID</string>
+	<key>io.flutter.embedded_views_preview</key>
+	<true/>
+	
 	<!-- 위치 권한 설명 -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>주변 지하철역을 찾기 위해 위치 권한이 필요합니다.</string>

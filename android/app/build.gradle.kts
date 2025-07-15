@@ -5,6 +5,9 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// 네이버 맵 API 키 설정
+def naverMapClientId = project.hasProperty('NAVER_MAP_CLIENT_ID') ? NAVER_MAP_CLIENT_ID : 'YOUR_NAVER_MAP_CLIENT_ID'
+
 android {
     namespace = "com.example.transportation"
     compileSdk = flutter.compileSdkVersion
@@ -31,10 +34,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            manifestPlaceholders = [naverMapClientId: naverMapClientId]
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            manifestPlaceholders = [naverMapClientId: naverMapClientId]
         }
     }
 }

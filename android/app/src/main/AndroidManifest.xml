@@ -46,6 +46,11 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- 네이버 지도 Client ID -->
+        <meta-data
+            android:name="com.naver.maps.map.CLIENT_ID"
+            android:value="${naverMapClientId}" />
+        
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

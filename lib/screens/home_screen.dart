@@ -4,7 +4,8 @@ import '../constants/app_constants.dart';
 import '../providers/location_provider.dart';
 import 'station_search_screen.dart';
 import 'favorites_screen.dart';
-import 'google_map_screen.dart'; // OpenStreetMap 사용
+import 'naver_native_map_screen.dart'; // 네이버 네이티브 맵 사용
+import 'google_map_screen.dart'; // OpenStreetMap 사용 (대체용)
 
 /// 메인 홈 화면 (하단 네비게이션 포함)
 class HomeScreen extends StatefulWidget {
@@ -18,7 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-    const GoogleMapScreen(), // 지도
+    const NaverNativeMapScreen(), // 네이버 네이티브 지도
     const StationSearchScreen(), // 역검색
     const FavoritesScreen(), // 즐겨찾기
   ];
