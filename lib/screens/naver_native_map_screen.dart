@@ -281,10 +281,6 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       appBar: AppBar(
         title: const Text('지하철 지도 (네이버 네이티브)'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.my_location),
-            onPressed: _getCurrentLocation,
-          ),
           PopupMenuButton<String>(
             onSelected: (value) async {
               switch (value) {
@@ -354,6 +350,41 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
                 print('지도 클릭: ${coord.latitude}, ${coord.longitude}');
               },
             ),
+
+          // 내 위치 버튼 (우측 하단 - 동적 위치)
+          Consumer<LocationProvider>(
+            builder: (context, locationProvider, child) {
+              final hasNearbyStations = locationProvider.nearbyStations.isNotEmpty;
+              final bottomPosition = hasNearbyStations ? 180.0 : 80.0; // bottomSheet 유무에 따라 위치 조정
+              
+              return Positioned(
+                right: AppSpacing.md,
+                bottom: bottomPosition,
+                child: FloatingActionButton.small(
+                  onPressed: _isLoading ? null : _getCurrentLocation, // 로딩 중에는 비활성화
+                  backgroundColor: _isLoading 
+                      ? AppColors.primary.withOpacity(0.6) 
+                      : AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                  heroTag: 'location_button',
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Icon(
+                          Icons.my_location,
+                          size: 20,
+                        ),
+                ),
+              );
+            },
+          ),
 
           // 에러 메시지
           if (_errorMessage != null)
