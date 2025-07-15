@@ -17,7 +17,7 @@ class NaverNativeMapScreen extends StatefulWidget {
 
 class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
   NaverMapController? _mapController;
-  bool _isLoading = true;
+  bool _isLoading = false; // 초기화 제거로 기본값 false
   String? _errorMessage;
   final List<NMarker> _markers = [];
   NMarker? _currentLocationMarker;
@@ -25,39 +25,8 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeNaverMap();
-  }
-
-  Future<void> _initializeNaverMap() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
-
-      // 네이버 지도 SDK 초기화
-      await NaverMapSdk.instance.initialize(
-        clientId: ApiConstants.naverMapClientId,
-        onAuthFailed: (exception) {
-          print('네이버맵 인증 실패: $exception');
-          setState(() {
-            _errorMessage = '네이버 지도 인증에 실패했습니다. API 키를 확인해주세요.';
-            _isLoading = false;
-          });
-        },
-      );
-
-      print('네이버 지도 SDK 초기화 완료');
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('네이버 지도 초기화 오류: $e');
-      setState(() {
-        _errorMessage = '네이버 지도를 초기화하는데 실패했습니다: $e';
-        _isLoading = false;
-      });
-    }
+    // main.dart에서 이미 전역 초기화가 완료되었으므로 추가 초기화 불필요
+    print('네이버 지도 화면 준비 완료 (이미 초기화됨)');
   }
 
   Future<void> _onMapReady(NaverMapController controller) async {
@@ -88,35 +57,39 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
         await _mapController!.deleteOverlay(_currentLocationMarker!.info);
       }
 
-      // 새로운 현재 위치 마커 생성 (기본 파란색 마커 사용)
+      // 마커 아이콘 비동기 생성
+      final markerIcon = await NOverlayImage.fromWidget(
+        widget: Container(
+          width: 20,
+          height: 20,
+          decoration: const BoxDecoration(
+            color: Color(0xFF4285F4),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Container(
+            margin: const EdgeInsets.all(3),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+        size: const Size(20, 20),
+        context: context, // Context 추가
+      );
+
+      // 새로운 현재 위치 마커 생성
       _currentLocationMarker = NMarker(
         id: 'current_location',
         position: NLatLng(lat, lng),
-        icon: NOverlayImage.fromWidget(
-          widget: Container(
-            width: 20,
-            height: 20,
-            decoration: const BoxDecoration(
-              color: Color(0xFF4285F4),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 4,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Container(
-              margin: const EdgeInsets.all(3),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          size: const Size(20, 20),
-        ),
+        icon: markerIcon,
         anchor: const NPoint(0.5, 0.5),
       );
 
@@ -149,13 +122,13 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       for (int i = 0; i < stations.length; i++) {
         final station = stations[i];
         if (station.latitude != null && station.longitude != null) {
+          // 마커 아이콘 비동기 생성
+          final markerIcon = await _buildStationMarkerIcon(station.lineNumber, context);
+          
           final marker = NMarker(
             id: 'station_$i',
             position: NLatLng(station.latitude!, station.longitude!),
-            icon: NOverlayImage.fromWidget(
-              widget: _buildStationMarkerWidget(station.lineNumber),
-              size: const Size(40, 30),
-            ),
+            icon: markerIcon,
             anchor: const NPoint(0.5, 0.5),
           );
 
@@ -179,29 +152,34 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
     }
   }
 
-  Widget _buildStationMarkerWidget(String lineNumber) {
+  /// 지하철역 마커 아이콘 비동기 생성
+  Future<NOverlayImage> _buildStationMarkerIcon(String lineNumber, BuildContext context) async {
     final color = _getLineColor(lineNumber);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4,
-            offset: Offset(0, 2),
+    return await NOverlayImage.fromWidget(
+      widget: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Text(
+          lineNumber,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
           ),
-        ],
-      ),
-      child: Text(
-        lineNumber,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
         ),
       ),
+      size: const Size(40, 30),
+      context: context, // Context 추가
     );
   }
 
@@ -356,9 +334,8 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       ),
       body: Stack(
         children: [
-          // 네이버 지도
-          if (_errorMessage == null && !_isLoading)
-            NaverMap(
+          // 네이버 지도 (main.dart에서 이미 초기화 완료)
+          NaverMap(
               options: const NaverMapViewOptions(
                 initialCameraPosition: NCameraPosition(
                   target: NLatLng(37.5665, 126.9780), // 서울시청
@@ -373,37 +350,46 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
                 activeLayerGroups: [NLayerGroup.building, NLayerGroup.transit],
               ),
               onMapReady: _onMapReady,
+              onMapTapped: (point, coord) {
+                print('지도 클릭: ${coord.latitude}, ${coord.longitude}');
+              },
             ),
 
           // 에러 메시지
           if (_errorMessage != null)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.map_outlined,
-                      size: 64,
-                      color: AppColors.error,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      _errorMessage!,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.error,
+            Positioned(
+              top: 100,
+              left: AppSpacing.lg,
+              right: AppSpacing.lg,
+              child: Card(
+                color: AppColors.error.withOpacity(0.9),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.white,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    ElevatedButton(
-                      onPressed: () async {
-                        await _initializeNaverMap();
-                      },
-                      child: const Text('다시 시도'),
-                    ),
-                  ],
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () {
+                          setState(() {
+                            _errorMessage = null;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -411,7 +397,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
           // 로딩 인디케이터
           if (_isLoading)
             Container(
-              color: Colors.white,
+              color: Colors.black54,
               child: const Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -422,8 +408,11 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
                     ),
                     SizedBox(height: AppSpacing.md),
                     Text(
-                      '네이버 지도를 불러오고 있습니다...',
-                      style: AppTextStyles.bodyMedium,
+                      '위치 정보를 불러오고 있습니다...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
                     ),
                   ],
                 ),

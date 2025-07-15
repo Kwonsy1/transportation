@@ -16,17 +16,23 @@ void main() async {
   runApp(const TransportationApp());
 }
 
-/// 네이버 맵 SDK 초기화
+/// 네이버 맵 SDK 초기화 (새로운 1.4.0 API)
 Future<void> _initializeNaverMap() async {
   try {
-    await NaverMapSdk.instance.initialize(
+    await FlutterNaverMap().init(
       clientId: ApiConstants.naverMapClientId,
-      onAuthFailed: (exception) {
-        print('네이버맵 인증 실패: $exception');
-        // 인증 실패 시 전역 처리 또는 대체 맵 서비스 사용 가능
+      onAuthFailed: (ex) => switch (ex) {
+        NQuotaExceededException(:final message) => 
+          print('네이버맵 사용량 초과: $message'),
+        NUnauthorizedClientException() => 
+          print('네이버맵 인증되지 않은 클라이언트'),
+        NClientUnspecifiedException() => 
+          print('네이버맵 클라이언트 미지정'),
+        NAnotherAuthFailedException() => 
+          print('네이버맵 기타 인증 실패'),
       },
     );
-    print('네이버 맵 SDK 초기화 성공');
+    print('네이버 맵 SDK 1.4.0 초기화 성공');
   } catch (e) {
     print('네이버 맵 SDK 초기화 오류: $e');
     // 오류 발생 시 대체 맵 서비스 사용 가능

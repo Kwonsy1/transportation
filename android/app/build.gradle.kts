@@ -6,7 +6,7 @@ plugins {
 }
 
 // 네이버 맵 API 키 설정
-def naverMapClientId = project.hasProperty('NAVER_MAP_CLIENT_ID') ? NAVER_MAP_CLIENT_ID : 'YOUR_NAVER_MAP_CLIENT_ID'
+def naverMapClientId = project.hasProperty('NAVER_MAP_CLIENT_ID') ? NAVER_MAP_CLIENT_ID : 'jpj5i2bvdl'
 
 android {
     namespace = "com.example.transportation"

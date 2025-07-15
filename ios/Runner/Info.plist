@@ -48,7 +48,7 @@
 	
 	<!-- 네이버 맵 설정 -->
 	<key>NMFClientId</key>
-	<string>YOUR_NAVER_MAP_CLIENT_ID</string>
+	<string>jpj5i2bvdl</string>
 	<key>io.flutter.embedded_views_preview</key>
 	<true/>
 	
