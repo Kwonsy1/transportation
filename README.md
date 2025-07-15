@@ -10,7 +10,12 @@ Flutter로 개발된 국토교통부 지하철 정보 API를 활용한 지하철
 - 🚌 **출구별 버스노선**: 각 출구별 연결 버스노선 정보
 - 🏢 **출구별 주변시설**: 각 출구별 주변 시설 정보
 - 📍 **주변 역 찾기**: GPS를 이용한 주변 지하철역 검색
-- 🗺️ **네이버 지도 연동**: 지하철역 위치 확인
+- 🗺️ **향상된 네이버 지도**: 지하철역 위치 확인 및 인터랙티브 지도
+  - ✨ **지하철역 선택**: 지도 위의 지하철역 마커 클릭으로 선택
+  - 💬 **향상된 팝업**: 아름다운 디자인의 역 정보 팝업
+  - 🎆 **상세페이지 이동**: 팝업에서 '상세정보 보기' 버튼으로 원클릭 이동
+  - 🎨 **호선별 색상**: 각 지하철 호선의 고유 색상으로 직관적 구분
+  - 🔍 **노선별 필터**: 1-9호선, 공항철도, 경의중앙선 등 선택 가능
 - ❤️ **즐겨찾기**: 자주 이용하는 역 저장
 
 ## 🛠️ 사용된 기술
@@ -62,8 +67,8 @@ class ApiConstants {
   static const String subwayApiKey = 'YOUR_SUBWAY_API_KEY_HERE'; // 👈 실제 API 키로 교체
   
   // 네이버 지도 API
-  static const String naverMapClientId = 'jpj5i2bvdl'; // 👈 실제 클라이언트 ID로 교체 완료
-  static const String naverMapClientSecret = 'N4mEolnK5KGBQvcQDWqFzofQsp82uk7hLP36uZPQ'; // 👈 실제 클라이언트 시크릿으로 교체 완료
+  static const String naverMapClientId = 'YOUR_KEY_HERE'; // 👈 실제 클라이언트 ID로 교체 완료
+  static const String naverMapClientSecret = 'YOUR_KEY_HERE'; // 👈 실제 클라이언트 시크릿으로 교체 완료
 }
 ```
 

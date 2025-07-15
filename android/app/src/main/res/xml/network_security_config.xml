@@ -1,19 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- 네이버 지도 API 도메인들에 대해 cleartext traffic 허용 -->
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">map.naver.com</domain>
-        <domain includeSubdomains="true">map.naver.net</domain>
         <domain includeSubdomains="true">oapi.map.naver.com</domain>
-        <domain includeSubdomains="true">navermaps.github.io</domain>
-        <domain includeSubdomains="true">ncloud.com</domain>
-        <!-- 개발용 localhost 허용 -->
+        <domain includeSubdomains="true">map.naver.com</domain>
+        <domain includeSubdomains="true">naver.com</domain>
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
     </domain-config>
     
-    <!-- 기본적으로는 HTTPS만 허용 -->
-    <base-config cleartextTrafficPermitted="false">
+    <!-- 개발용: 모든 도메인에 대해 cleartext 허용 -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>

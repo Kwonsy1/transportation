@@ -41,6 +41,9 @@ dependencies:
   # 네이버 지도 연동을 위한 패키지 (webview 방식)
   webview_flutter: ^4.4.2
   
+  # 네이버 지도 공식 SDK (선택적)
+  # naver_map_plugin: ^0.9.7
+  
   # 위치 서비스 관련 패키지
   geolocator: ^10.1.0
   permission_handler: ^11.1.0

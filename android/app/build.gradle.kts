@@ -35,6 +35,18 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            
+            // Proguard 설정
+            isMinifyEnabled = true // 코드 축소 활성화
+            isShrinkResources = true // 리소스 축소 활성화
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        debug {
+            isMinifyEnabled = true // 코드 축소 활성화
+            isShrinkResources = true // 리소스 축소 활성화
+            
+            // 개발용 네트워크 보안 완화
+            isDebuggable = true
         }
     }
 }
