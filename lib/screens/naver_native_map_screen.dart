@@ -6,6 +6,8 @@ import '../constants/app_constants.dart';
 import '../constants/api_constants.dart';
 import '../providers/location_provider.dart';
 import '../providers/subway_provider.dart';
+import '../models/subway_station.dart';
+import 'station_detail_screen.dart';
 
 /// 네이버 지도 네이티브 화면 (flutter_naver_map 사용)
 class NaverNativeMapScreen extends StatefulWidget {
@@ -17,7 +19,7 @@ class NaverNativeMapScreen extends StatefulWidget {
 
 class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
   NaverMapController? _mapController;
-  bool _isLoading = false; // 초기화 제거로 기본값 false
+  bool _isLoading = false;
   String? _errorMessage;
   final List<NMarker> _markers = [];
   NMarker? _currentLocationMarker;
@@ -25,26 +27,177 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
   @override
   void initState() {
     super.initState();
-    // main.dart에서 이미 전역 초기화가 완료되었으므로 추가 초기화 불필요
-    print('네이버 지도 화면 준비 완료 (이미 초기화됨)');
+    print('네이버 지도 화면 시작');
+    
+    // 앱 시작 시 지하철역 마커 자동 로드
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInitialStations();
+    });
+  }
+
+  /// 앱 시작 시 기본 지하철역들을 로드
+  Future<void> _loadInitialStations() async {
+    final locationProvider = context.read<LocationProvider>();
+    
+    print('초기 역 로드 시작');
+    
+    // 현재 위치가 없으면 기본값으로 로드
+    if (locationProvider.currentPosition == null) {
+      await locationProvider.loadNearbyStations();
+    }
+    
+    print('현재 주변 역 수: ${locationProvider.nearbyStations.length}');
+    
+    // 지도가 준비되었고 주변 역이 있으면 마커 추가
+    if (_mapController != null && locationProvider.nearbyStations.isNotEmpty) {
+      await _addSubwayStationMarkers();
+    }
   }
 
   Future<void> _onMapReady(NaverMapController controller) async {
     _mapController = controller;
     print('네이버 지도 준비 완료');
     
-    // 현재 위치가 있으면 지도에 표시
     final locationProvider = context.read<LocationProvider>();
+    
+    // 현재 위치가 있으면 지도에 표시
     if (locationProvider.currentPosition != null) {
       await _addCurrentLocationMarker(
         locationProvider.currentPosition!.latitude,
         locationProvider.currentPosition!.longitude,
       );
+    }
+    
+    // 주변 지하철역이 있으면 마커 추가
+    if (locationProvider.nearbyStations.isNotEmpty) {
+      await _addSubwayStationMarkers();
+    } else {
+      // 없으면 새로 로드
+      await _loadInitialStations();
+    }
+    
+    // 수동으로 몇 개 마커 추가 (테스트용)
+    await _addDebugMarkers();
+  }
+
+  /// 디버깅용 고정 마커 추가
+  Future<void> _addDebugMarkers() async {
+    if (_mapController == null) return;
+
+    try {
+      print('디버깅 마커 추가 시작');
       
-      // 주변 지하철역 마커 추가
-      if (locationProvider.nearbyStations.isNotEmpty) {
-        await _addSubwayStationMarkers();
+      // 서울시 주요 역들 정확한 좌표로 수정
+      final debugStations = [
+        {
+          'name': '강남역',
+          'lat': 37.497952,
+          'lng': 127.027619,
+          'line': '2',
+          'id': 'GANGNAM_STATION',
+          'routeName': '서울 2호선'
+        },
+        {
+          'name': '서울역',
+          'lat': 37.554648,
+          'lng': 126.970880,
+          'line': '1',
+          'id': 'SEOUL_STATION',
+          'routeName': '서울 1호선'
+        },
+        {
+          'name': '홍대입구역',
+          'lat': 37.556798,
+          'lng': 126.924370,
+          'line': '2',
+          'id': 'HONGIK_UNIV_STATION',
+          'routeName': '서울 2호선'
+        },
+        {
+          'name': '여의도역',
+          'lat': 37.521931,
+          'lng': 126.924477,
+          'line': '5',
+          'id': 'YEOUIDO_STATION',
+          'routeName': '서울 5호선'
+        },
+        {
+          'name': '종로3가역',
+          'lat': 37.570607,
+          'lng': 126.991806,
+          'line': '3',
+          'id': 'JONGNO_3GA_STATION',
+          'routeName': '서울 3호선'
+        },
+        {
+          'name': '잠실역',
+          'lat': 37.513188,
+          'lng': 127.100052,
+          'line': '2',
+          'id': 'JAMSIL_STATION',
+          'routeName': '서울 2호선'
+        },
+        {
+          'name': '신도림역',
+          'lat': 37.508728,
+          'lng': 126.891242,
+          'line': '1',
+          'id': 'SINDORIM_STATION',
+          'routeName': '서울 1호선'
+        },
+        {
+          'name': '건대입구역',
+          'lat': 37.540126,
+          'lng': 127.069684,
+          'line': '2',
+          'id': 'KONKUK_UNIV_STATION',
+          'routeName': '서울 2호선'
+        },
+      ];
+      
+      for (int i = 0; i < debugStations.length; i++) {
+        final stationData = debugStations[i];
+        
+        // SubwayStation 객체 생성 (상세 페이지용)
+        final station = SubwayStation(
+          subwayStationId: stationData['id'] as String,
+          subwayStationName: stationData['name'] as String,
+          subwayRouteName: stationData['routeName'] as String,
+          latitude: stationData['lat'] as double,
+          longitude: stationData['lng'] as double,
+        );
+        
+        // 마커 아이콘 생성
+        final markerIcon = await _buildStationMarkerIcon(stationData['line'] as String, context);
+        
+        final marker = NMarker(
+          id: 'debug_station_$i',
+          position: NLatLng(stationData['lat'] as double, stationData['lng'] as double),
+          icon: markerIcon,
+          anchor: const NPoint(0.5, 0.5),
+        );
+        
+        // 마커 클릭 이벤트 - 실제 상세 페이지로 이동
+        marker.setOnTapListener((overlay) {
+          print('${stationData['name']} 마커 클릭됨');
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => StationDetailScreen(station: station),
+            ),
+          );
+        });
+        
+        await _mapController!.addOverlay(marker);
+        _markers.add(marker);
+        
+        print('마커 추가: ${stationData['name']} at ${stationData['lat']}, ${stationData['lng']}');
       }
+      
+      print('총 ${debugStations.length}개 마커 추가 완료');
+      setState(() {});
+      
+    } catch (e) {
+      print('마커 추가 오류: $e');
     }
   }
 
@@ -57,32 +210,42 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
         await _mapController!.deleteOverlay(_currentLocationMarker!.info);
       }
 
-      // 마커 아이콘 비동기 생성
+      // 현재 위치 마커 아이콘 비동기 생성
       final markerIcon = await NOverlayImage.fromWidget(
         widget: Container(
-          width: 20,
-          height: 20,
-          decoration: const BoxDecoration(
-            color: Color(0xFF4285F4),
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: const Color(0xFF4285F4),
             shape: BoxShape.circle,
-            boxShadow: [
+            border: Border.all(
+              color: Colors.white,
+              width: 3,
+            ),
+            boxShadow: const [
               BoxShadow(
                 color: Colors.black26,
-                blurRadius: 4,
-                offset: Offset(0, 2),
+                blurRadius: 6,
+                offset: Offset(0, 3),
+              ),
+              BoxShadow(
+                color: Color(0xFF4285F4),
+                blurRadius: 12,
+                spreadRadius: -3,
+                offset: Offset(0, 0),
               ),
             ],
           ),
           child: Container(
-            margin: const EdgeInsets.all(3),
+            margin: const EdgeInsets.all(6),
             decoration: const BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
             ),
           ),
         ),
-        size: const Size(20, 20),
-        context: context, // Context 추가
+        size: const Size(24, 24),
+        context: context,
       );
 
       // 새로운 현재 위치 마커 생성
@@ -132,13 +295,13 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
             anchor: const NPoint(0.5, 0.5),
           );
 
-          // 마커 클릭 이벤트
+          // 마커 클릭 이벤트 - 상세 페이지로 이동
           marker.setOnTapListener((overlay) {
-            final infoWindow = NInfoWindow.onMarker(
-              id: marker.info.id,
-              text: '${station.stationName}\n${station.lineName}',
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => StationDetailScreen(station: station),
+              ),
             );
-            marker.openInfoWindow(infoWindow);
           });
 
           await _mapController!.addOverlay(marker);
@@ -146,40 +309,51 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
         }
       }
 
-      print('지하철역 마커 ${stations.length}개 추가 완료');
+      print('지하철역 마커 ${_markers.length}개 추가 완료');
+      
+      // 마커 추가 후 UI 업데이트
+      setState(() {});
     } catch (e) {
       print('지하철역 마커 추가 오류: $e');
     }
   }
 
-  /// 지하철역 마커 아이콘 비동기 생성
+  /// 지하철역 마커 아이콘 비동기 생성 (현재 위치 스타일)
   Future<NOverlayImage> _buildStationMarkerIcon(String lineNumber, BuildContext context) async {
     final color = _getLineColor(lineNumber);
     return await NOverlayImage.fromWidget(
       widget: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        width: 28,
+        height: 28,
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(15),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white,
+            width: 3,
+          ),
           boxShadow: const [
             BoxShadow(
               color: Colors.black26,
-              blurRadius: 4,
-              offset: Offset(0, 2),
+              blurRadius: 6,
+              offset: Offset(0, 3),
             ),
           ],
         ),
-        child: Text(
-          lineNumber,
-          style: const TextStyle(
+        child: Container(
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.train,
             color: Colors.white,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
+            size: 16,
           ),
         ),
       ),
-      size: const Size(40, 30),
-      context: context, // Context 추가
+      size: const Size(28, 28),
+      context: context,
     );
   }
 
@@ -281,6 +455,14 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       appBar: AppBar(
         title: const Text('지하철 지도 (네이버 네이티브)'),
         actions: [
+          // 디버깅용 마커 추가 버튼
+          IconButton(
+            icon: const Icon(Icons.add_location),
+            onPressed: () async {
+              await _addDebugMarkers();
+            },
+            tooltip: '마커 추가',
+          ),
           PopupMenuButton<String>(
             onSelected: (value) async {
               switch (value) {
@@ -330,83 +512,76 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       ),
       body: Stack(
         children: [
-          // 네이버 지도 (main.dart에서 이미 초기화 완료)
+          // 네이버 지도
           NaverMap(
-              options: const NaverMapViewOptions(
-                initialCameraPosition: NCameraPosition(
-                  target: NLatLng(37.5665, 126.9780), // 서울시청
-                  zoom: 10,
-                  bearing: 0,
-                  tilt: 0,
-                ),
-                indoorEnable: true,
-                locationButtonEnable: false,
-                consumeSymbolTapEvents: false,
-                mapType: NMapType.basic,
-                activeLayerGroups: [NLayerGroup.building, NLayerGroup.transit],
+            options: const NaverMapViewOptions(
+              initialCameraPosition: NCameraPosition(
+                target: NLatLng(37.5665, 126.9780), // 서울시청
+                zoom: 12,
+                bearing: 0,
+                tilt: 0,
               ),
-              onMapReady: _onMapReady,
-              onMapTapped: (point, coord) {
-                print('지도 클릭: ${coord.latitude}, ${coord.longitude}');
-              },
+              indoorEnable: true,
+              locationButtonEnable: false,
+              consumeSymbolTapEvents: false,
+              mapType: NMapType.basic,
+              activeLayerGroups: [NLayerGroup.building, NLayerGroup.transit],
             ),
-
-          // 내 위치 버튼 (우측 하단 - 동적 위치)
-          Consumer<LocationProvider>(
-            builder: (context, locationProvider, child) {
-              final hasNearbyStations = locationProvider.nearbyStations.isNotEmpty;
-              final bottomPosition = hasNearbyStations ? 180.0 : 80.0; // bottomSheet 유무에 따라 위치 조정
-              
-              return Positioned(
-                right: AppSpacing.md,
-                bottom: bottomPosition,
-                child: FloatingActionButton.small(
-                  onPressed: _isLoading ? null : _getCurrentLocation, // 로딩 중에는 비활성화
-                  backgroundColor: _isLoading 
-                      ? AppColors.primary.withOpacity(0.6) 
-                      : AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 4,
-                  heroTag: 'location_button',
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Icon(
-                          Icons.my_location,
-                          size: 20,
-                        ),
-                ),
-              );
+            onMapReady: _onMapReady,
+            onMapTapped: (point, coord) {
+              print('지도 클릭: ${coord.latitude}, ${coord.longitude}');
             },
+          ),
+
+          // 내 위치 버튼 (우측 하단)
+          Positioned(
+            right: 16,
+            bottom: 100,
+            child: FloatingActionButton.small(
+              onPressed: _isLoading ? null : _getCurrentLocation,
+              backgroundColor: _isLoading 
+                  ? Colors.green.withOpacity(0.6) 
+                  : Colors.green,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              heroTag: 'location_button',
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(
+                      Icons.my_location,
+                      size: 20,
+                    ),
+            ),
           ),
 
           // 에러 메시지
           if (_errorMessage != null)
             Positioned(
               top: 100,
-              left: AppSpacing.lg,
-              right: AppSpacing.lg,
+              left: 16,
+              right: 16,
               child: Card(
-                color: AppColors.error.withOpacity(0.9),
+                color: Colors.red.withOpacity(0.9),
                 child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
                       const Icon(
                         Icons.error_outline,
                         color: Colors.white,
                       ),
-                      const SizedBox(width: AppSpacing.sm),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: AppTextStyles.bodySmall.copyWith(
+                          style: const TextStyle(
                             color: Colors.white,
                           ),
                         ),
@@ -434,10 +609,10 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     SpinKitWave(
-                      color: AppColors.primary,
+                      color: Colors.green,
                       size: 50.0,
                     ),
-                    SizedBox(height: AppSpacing.md),
+                    SizedBox(height: 16),
                     Text(
                       '위치 정보를 불러오고 있습니다...',
                       style: TextStyle(
@@ -449,118 +624,45 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
                 ),
               ),
             ),
-        ],
-      ),
 
-      // 하단 정보 패널
-      bottomSheet: Consumer2<LocationProvider, SubwayProvider>(
-        builder: (context, locationProvider, subwayProvider, child) {
-          if (locationProvider.nearbyStations.isEmpty) {
-            return const SizedBox.shrink();
-          }
-
-          return Container(
-            height: 100,
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.vertical(
-                top: Radius.circular(AppRadius.large),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 10,
-                  offset: Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.train,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      '주변 지하철역 ${locationProvider.nearbyStations.length}개',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Expanded(
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: locationProvider.nearbyStations.length,
-                    itemBuilder: (context, index) {
-                      final station = locationProvider.nearbyStations[index];
-                      final distance = locationProvider.calculateDistanceToStation(station);
-
-                      return Container(
-                        margin: const EdgeInsets.only(right: AppSpacing.md),
-                        child: InkWell(
-                          onTap: () async {
-                            if (station.latitude != null && 
-                                station.longitude != null && 
-                                _mapController != null) {
-                              try {
-                                final cameraUpdate = NCameraUpdate.scrollAndZoomTo(
-                                  target: NLatLng(station.latitude!, station.longitude!),
-                                  zoom: 17,
-                                );
-                                await _mapController!.updateCamera(cameraUpdate);
-                              } catch (e) {
-                                print('지도 이동 오류: $e');
-                              }
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md,
-                              vertical: AppSpacing.sm,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(AppRadius.medium),
-                              border: Border.all(
-                                color: AppColors.primary.withOpacity(0.3),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  station.stationName,
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                if (distance != null)
-                                  Text(
-                                    locationProvider.formatDistance(distance),
-                                    style: AppTextStyles.caption.copyWith(
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+          // 마커 개수 및 상태 표시
+          Positioned(
+            top: 100,
+            left: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
                   ),
-                ),
-              ],
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.train,
+                    color: Colors.green,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '마커: ${_markers.length}개',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
