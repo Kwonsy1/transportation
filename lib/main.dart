@@ -72,7 +72,16 @@ class TransportationApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => SubwayProvider()),
+        ChangeNotifierProvider(
+          create: (_) {
+            final subwayProvider = SubwayProvider();
+            // 앱 시작 시 즐겨찾기 로드
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              subwayProvider.loadFavoritesFromLocal();
+            });
+            return subwayProvider;
+          },
+        ),
         ChangeNotifierProvider(
           create: (_) {
             final locationProvider = LocationProvider();

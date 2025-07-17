@@ -5,6 +5,7 @@ import '../models/next_train_info.dart';
 import '../models/api_response.dart';
 import '../models/station_group.dart';
 import '../services/subway_api_service.dart';
+import '../services/favorites_storage_service.dart';
 
 /// 지하철 정보 상태 관리 Provider (국토교통부 API 기준)
 class SubwayProvider extends ChangeNotifier {
@@ -258,23 +259,23 @@ class SubwayProvider extends ChangeNotifier {
   }
 
   /// 즐겨찾기 역 그룹 추가
-  void addFavoriteStationGroup(StationGroup stationGroup) {
+  Future<void> addFavoriteStationGroup(StationGroup stationGroup) async {
     if (!_favoriteStationGroups.any(
       (g) => g.stationName == stationGroup.stationName,
     )) {
       _favoriteStationGroups.add(stationGroup);
       notifyListeners();
-      _saveFavoritesToLocal();
+      await _saveFavoritesToLocal();
     }
   }
 
   /// 즐겨찾기 역 그룹 제거
-  void removeFavoriteStationGroup(StationGroup stationGroup) {
+  Future<void> removeFavoriteStationGroup(StationGroup stationGroup) async {
     _favoriteStationGroups.removeWhere(
       (g) => g.stationName == stationGroup.stationName,
     );
     notifyListeners();
-    _saveFavoritesToLocal();
+    await _saveFavoritesToLocal();
   }
 
   /// 즐겨찾기 역 그룹 여부 확인
@@ -282,6 +283,18 @@ class SubwayProvider extends ChangeNotifier {
     return _favoriteStationGroups.any(
       (g) => g.stationName == stationGroup.stationName,
     );
+  }
+
+  /// 모든 즐겨찾기 제거
+  Future<void> clearAllFavorites() async {
+    try {
+      _favoriteStationGroups.clear();
+      notifyListeners();
+      await FavoritesStorageService.clearAllFavorites();
+      print('모든 즐겨찾기 제거 완료');
+    } catch (e) {
+      print('즐겨찾기 전체 제거 오류: $e');
+    }
   }
 
   /// 특정 역명이 즐겨찾기에 있는지 확인 (역명으로 검사)
@@ -293,25 +306,25 @@ class SubwayProvider extends ChangeNotifier {
   }
 
   /// 기존 즐겨찾기 추가 (개별 호선 - 하위 호환성)
-  void addFavoriteStation(SubwayStation station) {
+  Future<void> addFavoriteStation(SubwayStation station) async {
     if (!_favoriteStations.any(
       (s) => s.subwayStationId == station.subwayStationId,
     )) {
       _favoriteStations.add(station);
       notifyListeners();
       // 실제 앱에서는 여기서 로컬 저장소에 저장
-      _saveFavoritesToLocal();
+      await _saveFavoritesToLocal();
     }
   }
 
   /// 즐겨찾기 제거
-  void removeFavoriteStation(SubwayStation station) {
+  Future<void> removeFavoriteStation(SubwayStation station) async {
     _favoriteStations.removeWhere(
       (s) => s.subwayStationId == station.subwayStationId,
     );
     notifyListeners();
     // 실제 앱에서는 여기서 로컬 저장소에서 제거
-    _saveFavoritesToLocal();
+    await _saveFavoritesToLocal();
   }
 
   /// 기존 즐겨찾기 여부 확인 (개별 호선 - 하위 호환성, 그룹 기반으로 리다이렉트)
@@ -397,17 +410,29 @@ class SubwayProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 로컬 저장소에 즐겨찾기 저장 (더미 구현)
-  void _saveFavoritesToLocal() {
-    // 실제 구현에서는 shared_preferences 등을 사용
-    print('즐겨찾기 그룹 저장: ${_favoriteStationGroups.length}개');
-    print('기존 즐겨찾기 역 저장: ${_favoriteStations.length}개');
+  /// 로컬 저장소에 즐겨찾기 저장
+  Future<void> _saveFavoritesToLocal() async {
+    try {
+      await FavoritesStorageService.saveFavoriteStationGroups(_favoriteStationGroups);
+      print('즐겨찾기 그룹 저장: ${_favoriteStationGroups.length}개');
+    } catch (e) {
+      print('즐겨찾기 저장 오류: $e');
+      // 오류 발생시도 앱 동작은 계속됨
+    }
   }
 
-  /// 로컬 저장소에서 즐겨찾기 로드 (더미 구현)
+  /// 로컬 저장소에서 즐겨찾기 로드
   Future<void> loadFavoritesFromLocal() async {
-    // 실제 구현에서는 shared_preferences 등을 사용
-    print('즐겨찾기 로드');
+    try {
+      final loadedFavorites = await FavoritesStorageService.loadFavoriteStationGroups();
+      _favoriteStationGroups.clear();
+      _favoriteStationGroups.addAll(loadedFavorites);
+      notifyListeners();
+      print('즐겨찾기 로드 완료: ${_favoriteStationGroups.length}개');
+    } catch (e) {
+      print('즐겨찾기 로드 오류: $e');
+      // 오류 발생시 빈 리스트로 유지
+    }
   }
 
   /// 현재 요일에 따른 요일 코드 반환

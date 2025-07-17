@@ -39,8 +39,8 @@ class FavoritesScreen extends StatelessWidget {
               child: const Text('취소'),
             ),
             TextButton(
-              onPressed: () {
-                provider.removeFavoriteStationGroup(stationGroup);
+              onPressed: () async {
+                await provider.removeFavoriteStationGroup(stationGroup);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -220,16 +220,16 @@ class FavoritesScreen extends StatelessWidget {
                             },
                           );
                         },
-                        onDismissed: (direction) {
-                          provider.removeFavoriteStationGroup(stationGroup);
+                        onDismissed: (direction) async {
+                          await provider.removeFavoriteStationGroup(stationGroup);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('${stationGroup.cleanStationName}역을 즐겨찾기에서 제거했습니다'),
                               duration: const Duration(seconds: 2),
                               action: SnackBarAction(
                                 label: '취소',
-                                onPressed: () {
-                                  provider.addFavoriteStationGroup(stationGroup);
+                                onPressed: () async {
+                                  await provider.addFavoriteStationGroup(stationGroup);
                                 },
                               ),
                             ),
@@ -269,18 +269,13 @@ class FavoritesScreen extends StatelessWidget {
               child: const Text('취소'),
             ),
             TextButton(
-              onPressed: () {
-                final count = provider.favoriteStationGroups.length;
-                // 모든 즐겨찾기 제거
-                final favoritesCopy = List<StationGroup>.from(provider.favoriteStationGroups);
-                for (final stationGroup in favoritesCopy) {
-                  provider.removeFavoriteStationGroup(stationGroup);
-                }
+              onPressed: () async {
+                await provider.clearAllFavorites();
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('즐겨찾기 ${count}개를 모두 제거했습니다'),
-                    duration: const Duration(seconds: 3),
+                  const SnackBar(
+                    content: Text('모든 즐겨찾기를 제거했습니다'),
+                    duration: Duration(seconds: 3),
                   ),
                 );
               },

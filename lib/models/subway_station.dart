@@ -28,15 +28,7 @@ class SubwayStation {
     this.longitude,
   });
 
-  factory SubwayStation.fromJson(Map<String, dynamic> json) {
-    return SubwayStation(
-      subwayStationId: json['subwayStationId']?.toString() ?? '',
-      subwayStationName: json['subwayStationName']?.toString() ?? '',
-      subwayRouteName: json['subwayRouteName']?.toString() ?? '',
-      latitude: json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null,
-      longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
-    );
-  }
+  factory SubwayStation.fromJson(Map<String, dynamic> json) => _$SubwayStationFromJson(json);
 
   Map<String, dynamic> toJson() => _$SubwayStationToJson(this);
 

@@ -57,6 +57,9 @@ dependencies:
   
   # 로딩 인디케이터
   flutter_spinkit: ^5.2.0
+  
+  # 로컬 저장소
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:

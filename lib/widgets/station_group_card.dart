@@ -77,9 +77,9 @@ class StationGroupCard extends StatelessWidget {
                             isFavorite ? Icons.star : Icons.star_border,
                             color: isFavorite ? Colors.orange : AppColors.textSecondary,
                           ),
-                          onPressed: () {
+                          onPressed: () async {
                             if (isFavorite) {
-                              provider.removeFavoriteStationGroup(stationGroup);
+                              await provider.removeFavoriteStationGroup(stationGroup);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('${stationGroup.cleanStationName}역을 즐겨찾기에서 제거했습니다'),
@@ -87,7 +87,7 @@ class StationGroupCard extends StatelessWidget {
                                 ),
                               );
                             } else {
-                              provider.addFavoriteStationGroup(stationGroup);
+                              await provider.addFavoriteStationGroup(stationGroup);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('${stationGroup.cleanStationName}역을 즐겨찾기에 추가했습니다'),
