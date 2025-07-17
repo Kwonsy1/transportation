@@ -3,25 +3,28 @@ import 'package:provider/provider.dart';
 import '../constants/app_constants.dart';
 import '../providers/subway_provider.dart';
 import '../models/subway_station.dart';
-import '../widgets/station_card.dart';
-import 'station_detail_screen.dart';
+import '../widgets/station_group_card.dart';
+import '../models/station_group.dart';
+import 'multi_line_station_detail_screen.dart';
 
 /// 즐겨찾기 화면
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({super.key});
 
-  void _onStationTap(BuildContext context, SubwayStation station) {
+  void _onStationGroupTap(BuildContext context, StationGroup stationGroup) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => StationDetailScreen(station: station),
+        builder: (context) => MultiLineStationDetailScreen(
+          stationGroup: stationGroup,
+        ),
       ),
     );
   }
 
   void _showRemoveConfirmDialog(
     BuildContext context,
-    SubwayStation station,
+    StationGroup stationGroup,
     SubwayProvider provider,
   ) {
     showDialog(
@@ -29,7 +32,7 @@ class FavoritesScreen extends StatelessWidget {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('즐겨찾기 제거'),
-          content: Text('${station.stationName}역을 즐겨찾기에서 제거하시겠습니까?'),
+          content: Text('${stationGroup.cleanStationName}역을 즐겨찾기에서 제거하시겠습니까?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -37,11 +40,11 @@ class FavoritesScreen extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {
-                provider.removeFavoriteStation(station);
+                provider.removeFavoriteStationGroup(stationGroup);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('${station.stationName}역을 즐겨찾기에서 제거했습니다'),
+                    content: Text('${stationGroup.cleanStationName}역을 즐겨찾기에서 제거했습니다'),
                     duration: const Duration(seconds: 2),
                   ),
                 );
@@ -64,8 +67,8 @@ class FavoritesScreen extends StatelessWidget {
         title: const Text('즐겨찾기'),
         actions: [
           Consumer<SubwayProvider>(
-            builder: (context, provider, child) {
-              if (provider.favoriteStations.isNotEmpty) {
+          builder: (context, provider, child) {
+          if (provider.favoriteStationGroups.isNotEmpty) {
                 return PopupMenuButton<String>(
                   onSelected: (value) {
                     if (value == 'clear_all') {
@@ -94,7 +97,7 @@ class FavoritesScreen extends StatelessWidget {
       body: Consumer<SubwayProvider>(
         builder: (context, provider, child) {
           // 즐겨찾기가 비어있는 경우
-          if (provider.favoriteStations.isEmpty) {
+          if (provider.favoriteStationGroups.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -114,15 +117,6 @@ class FavoritesScreen extends StatelessWidget {
                     '자주 이용하는 지하철역을 즐겨찾기에 추가해보세요',
                     style: AppTextStyles.bodyMedium,
                     textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // 홈 화면의 검색 탭으로 이동하는 로직
-                      Navigator.of(context).popUntil((route) => route.isFirst);
-                    },
-                    icon: const Icon(Icons.search),
-                    label: const Text('역 검색하기'),
                   ),
                 ],
               ),
@@ -146,7 +140,7 @@ class FavoritesScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
-                      '즐겨찾기 ${provider.favoriteStations.length}개',
+                      '즐겨찾기 ${provider.favoriteStationGroups.length}개',
                       style: AppTextStyles.bodyMedium.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,
@@ -163,17 +157,17 @@ class FavoritesScreen extends StatelessWidget {
                 ),
               ),
               
-              // 즐겨찾기 역 목록
+              // 즐겨찾기 역 그룹 목록
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.all(AppSpacing.md),
-                  itemCount: provider.favoriteStations.length,
+                  itemCount: provider.favoriteStationGroups.length,
                   itemBuilder: (context, index) {
-                    final station = provider.favoriteStations[index];
+                    final stationGroup = provider.favoriteStationGroups[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                       child: Dismissible(
-                        key: Key('${station.subwayStationId}_${station.lineNumber}'),
+                        key: Key(stationGroup.stationName),
                         direction: DismissDirection.endToStart,
                         background: Container(
                           alignment: Alignment.centerRight,
@@ -208,7 +202,7 @@ class FavoritesScreen extends StatelessWidget {
                             builder: (BuildContext context) {
                               return AlertDialog(
                                 title: const Text('즐겨찾기 제거'),
-                                content: Text('${station.stationName}역을 즐겨찾기에서 제거하시겠습니까?'),
+                                content: Text('${stationGroup.cleanStationName}역을 즐겨찾기에서 제거하시겠습니까?'),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(context, false),
@@ -227,25 +221,26 @@ class FavoritesScreen extends StatelessWidget {
                           );
                         },
                         onDismissed: (direction) {
-                          provider.removeFavoriteStation(station);
+                          provider.removeFavoriteStationGroup(stationGroup);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('${station.stationName}역을 즐겨찾기에서 제거했습니다'),
+                              content: Text('${stationGroup.cleanStationName}역을 즐겨찾기에서 제거했습니다'),
                               duration: const Duration(seconds: 2),
                               action: SnackBarAction(
                                 label: '취소',
                                 onPressed: () {
-                                  provider.addFavoriteStation(station);
+                                  provider.addFavoriteStationGroup(stationGroup);
                                 },
                               ),
                             ),
                           );
                         },
                         child: InkWell(
-                          onTap: () => _onStationTap(context, station),
-                          onLongPress: () => _showRemoveConfirmDialog(context, station, provider),
-                          child: StationCard(
-                            station: station,
+                          onTap: () => _onStationGroupTap(context, stationGroup),
+                          onLongPress: () => _showRemoveConfirmDialog(context, stationGroup, provider),
+                          child: StationGroupCard(
+                            stationGroup: stationGroup,
+                            onTap: () => _onStationGroupTap(context, stationGroup),
                             showFavoriteButton: false,
                           ),
                         ),
@@ -275,11 +270,11 @@ class FavoritesScreen extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {
-                final count = provider.favoriteStations.length;
+                final count = provider.favoriteStationGroups.length;
                 // 모든 즐겨찾기 제거
-                final favoritesCopy = List<SubwayStation>.from(provider.favoriteStations);
-                for (final station in favoritesCopy) {
-                  provider.removeFavoriteStation(station);
+                final favoritesCopy = List<StationGroup>.from(provider.favoriteStationGroups);
+                for (final stationGroup in favoritesCopy) {
+                  provider.removeFavoriteStationGroup(stationGroup);
                 }
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(

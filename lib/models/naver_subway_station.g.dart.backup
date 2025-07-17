@@ -1,0 +1,53 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'naver_subway_station.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+NaverSubwayStation _$NaverSubwayStationFromJson(Map<String, dynamic> json) =>
+    NaverSubwayStation(
+      title: json['title'] as String,
+      link: json['link'] as String,
+      category: json['category'] as String,
+      description: json['description'] as String,
+      telephone: json['telephone'] as String,
+      address: json['address'] as String,
+      roadAddress: json['roadAddress'] as String,
+      mapx: json['mapx'] as String,
+      mapy: json['mapy'] as String,
+    );
+
+Map<String, dynamic> _$NaverSubwayStationToJson(NaverSubwayStation instance) =>
+    <String, dynamic>{
+      'title': instance.title,
+      'link': instance.link,
+      'category': instance.category,
+      'description': instance.description,
+      'telephone': instance.telephone,
+      'address': instance.address,
+      'roadAddress': instance.roadAddress,
+      'mapx': instance.mapx,
+      'mapy': instance.mapy,
+    };
+
+NaverLocalSearchResponse _$NaverLocalSearchResponseFromJson(
+        Map<String, dynamic> json) =>
+    NaverLocalSearchResponse(
+      total: json['total'] as int,
+      start: json['start'] as int,
+      display: json['display'] as int,
+      items: (json['items'] as List<dynamic>)
+          .map((e) => NaverSubwayStation.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+
+Map<String, dynamic> _$NaverLocalSearchResponseToJson(
+        NaverLocalSearchResponse instance) =>
+    <String, dynamic>{
+      'total': instance.total,
+      'start': instance.start,
+      'display': instance.display,
+      'items': instance.items,
+    };

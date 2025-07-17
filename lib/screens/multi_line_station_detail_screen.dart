@@ -5,30 +5,43 @@ import 'package:url_launcher/url_launcher.dart';
 import '../constants/app_constants.dart';
 import '../constants/api_constants.dart';
 import '../models/subway_station.dart';
+import '../models/station_group.dart';
 import '../providers/subway_provider.dart';
 import '../providers/location_provider.dart';
 
-/// 역 상세 정보 화면 (스크린샷 스타일)
-class StationDetailScreen extends StatefulWidget {
-  final SubwayStation station;
+/// 멀티 호선 지원 역 상세 정보 화면
+class MultiLineStationDetailScreen extends StatefulWidget {
+  final StationGroup stationGroup;
+  final SubwayStation? initialStation;
 
-  const StationDetailScreen({super.key, required this.station});
+  const MultiLineStationDetailScreen({
+    super.key, 
+    required this.stationGroup,
+    this.initialStation,
+  });
 
   @override
-  State<StationDetailScreen> createState() => _StationDetailScreenState();
+  State<MultiLineStationDetailScreen> createState() => _MultiLineStationDetailScreenState();
 }
 
-class _StationDetailScreenState extends State<StationDetailScreen> {
+class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScreen> {
+  late SubwayStation _selectedStation;
+
   @override
   void initState() {
     super.initState();
-
-    // 역 선택 및 데이터 로드
+    _selectedStation = widget.initialStation ?? widget.stationGroup.stations.first;
+    
+    // 선택된 역의 데이터 로드
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<SubwayProvider>();
-      provider.selectStation(widget.station);
-      _loadAllData();
+      _loadStationData();
     });
+  }
+
+  Future<void> _loadStationData() async {
+    final provider = context.read<SubwayProvider>();
+    provider.selectStation(_selectedStation);
+    await _loadAllData();
   }
 
   Future<void> _loadAllData() async {
@@ -52,6 +65,15 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
     );
   }
 
+  void _onLineSelected(SubwayStation station) {
+    if (_selectedStation.subwayStationId != station.subwayStationId) {
+      setState(() {
+        _selectedStation = station;
+      });
+      _loadStationData();
+    }
+  }
+
   Color _getLineColor(String lineNumber) {
     final colors = {
       '1': const Color(0xFF263c96),
@@ -67,6 +89,28 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
     return colors[lineNumber] ?? const Color(0xFF757575);
   }
 
+  /// 시간 포맷 헬퍼 (범위 체크 포함)
+  String _formatTime(String timeString) {
+    if (timeString.length < 4) {
+      return timeString; // 너무 짧으면 그대로 반환
+    }
+    
+    try {
+      if (timeString.length >= 6) {
+        // HHMMSS 형식
+        return '${timeString.substring(0, 2)}:${timeString.substring(2, 4)}';
+      } else if (timeString.length >= 4) {
+        // HHMM 형식
+        return '${timeString.substring(0, 2)}:${timeString.substring(2, 4)}';
+      } else {
+        return timeString;
+      }
+    } catch (e) {
+      print('시간 포맷 오류: $timeString, $e');
+      return timeString; // 오류 시 원본 문자열 반환
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -75,6 +119,14 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
+        title: Text(
+          '${widget.stationGroup.cleanStationName}역',
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
@@ -93,15 +145,14 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
             children: [
               // 역 정보 헤더
               _buildStationHeader(),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // 출발/도착 버튼
-              _buildActionButtons(),
+              // 호선 선택 탭
+              _buildLineSelectionTabs(),
 
               const SizedBox(height: 20),
 
@@ -133,27 +184,14 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   Widget _buildStationHeader() {
-    final lineColor = _getLineColor(widget.station.lineNumber);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 역명
-        Text(
-          widget.station.subwayStationName,
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        const SizedBox(height: 8),
-
-        // 노선 정보
+        // 현재 선택된 노선 정보
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: lineColor,
+            color: _getLineColor(_selectedStation.lineNumber),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -163,13 +201,13 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                 width: 16,
                 height: 16,
                 decoration: BoxDecoration(
-                  color: lineColor,
+                  color: _getLineColor(_selectedStation.lineNumber),
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),
                 child: Center(
                   child: Text(
-                    widget.station.lineNumber,
+                    _selectedStation.lineNumber,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -180,7 +218,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                widget.station.subwayRouteName,
+                _selectedStation.subwayRouteName,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
@@ -198,7 +236,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
           builder: (context, locationProvider, child) {
             if (locationProvider.currentPosition != null) {
               final distance = locationProvider.calculateDistanceToStation(
-                widget.station,
+                _selectedStation,
               );
               if (distance != null) {
                 return Text(
@@ -214,59 +252,111 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
     );
   }
 
-  Widget _buildActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () {
-              // 출발지 설정 기능
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '${widget.station.subwayStationName}역을 출발지로 설정했습니다',
+  Widget _buildLineSelectionTabs() {
+    if (widget.stationGroup.stations.length <= 1) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.info_outline,
+                color: Colors.blue,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '호선을 선택해주세요',
+                style: TextStyle(
+                  color: Colors.blue[700],
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // 호선 탭들
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: widget.stationGroup.stations.map((station) {
+              final isSelected = _selectedStation.subwayStationId == station.subwayStationId;
+              final lineColor = _getLineColor(station.lineNumber);
+              
+              return GestureDetector(
+                onTap: () => _onLineSelected(station),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
                   ),
-                  backgroundColor: Colors.blue,
+                  decoration: BoxDecoration(
+                    color: isSelected ? lineColor : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: lineColor,
+                      width: 2,
+                    ),
+                    boxShadow: isSelected ? [
+                      BoxShadow(
+                        color: lineColor.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ] : null,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white : lineColor,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            station.lineNumber,
+                            style: TextStyle(
+                              color: isSelected ? lineColor : Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        station.subwayRouteName
+                            .replaceAll('서울 ', '')
+                            .replaceAll('호선', ''),
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : lineColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
-            },
-            icon: const Icon(Icons.directions, color: Colors.white),
-            label: const Text('출발', style: TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+            }).toList(),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () {
-              // 도착지 설정 기능
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '${widget.station.subwayStationName}역을 도착지로 설정했습니다',
-                  ),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            icon: const Icon(Icons.location_on, color: Colors.white),
-            label: const Text('도착', style: TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -276,19 +366,19 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
         // 즐겨찾기 버튼
         Consumer<SubwayProvider>(
           builder: (context, provider, child) {
-            final isFavorite = provider.isFavoriteStation(widget.station);
+            final isFavorite = provider.isFavoriteStationGroup(widget.stationGroup);
             return OutlinedButton.icon(
               onPressed: () {
                 if (isFavorite) {
-                  provider.removeFavoriteStation(widget.station);
+                  provider.removeFavoriteStationGroup(widget.stationGroup);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('즐겨찾기에서 제거했습니다')),
+                    SnackBar(content: Text('${widget.stationGroup.cleanStationName}역을 즐겨찾기에서 제거했습니다')),
                   );
                 } else {
-                  provider.addFavoriteStation(widget.station);
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('즐겨찾기에 추가했습니다')));
+                  provider.addFavoriteStationGroup(widget.stationGroup);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${widget.stationGroup.cleanStationName}역을 즐겨찾기에 추가했습니다')),
+                  );
                 }
               },
               icon: Icon(
@@ -318,10 +408,9 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
         // 공유 버튼
         OutlinedButton.icon(
           onPressed: () {
-            // 공유 기능
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('공유 기능은 추후 구현됩니다')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('공유 기능은 추후 구현됩니다')),
+            );
           },
           icon: const Icon(Icons.share, color: Colors.grey),
           label: const Text('공유', style: TextStyle(color: Colors.grey)),
@@ -567,7 +656,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
             else
               Container(
                 constraints: const BoxConstraints(
-                  maxHeight: 300, // 최대 높이 제한
+                  maxHeight: 300,
                 ),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey[300]!),
@@ -597,7 +686,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                       child: Row(
                         children: [
                           Text(
-                            '${schedule.depTime.substring(0, 2)}:${schedule.depTime.substring(2, 4)}',
+                            _formatTime(schedule.depTime),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -614,7 +703,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                             ),
                           ),
                           Text(
-                            '${schedule.arrTime.substring(0, 2)}:${schedule.arrTime.substring(2, 4)}',
+                            _formatTime(schedule.arrTime),
                             style: const TextStyle(
                               fontSize: 14,
                               color: Colors.grey,
@@ -676,13 +765,6 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
               spacing: 8,
               runSpacing: 8,
               children: exits.map((exitNo) {
-                final busRoutes = provider.exitBusRoutes
-                    .where((route) => route.exitNo == exitNo)
-                    .toList();
-                final facilities = provider.exitFacilities
-                    .where((facility) => facility.exitNo == exitNo)
-                    .toList();
-
                 return Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,

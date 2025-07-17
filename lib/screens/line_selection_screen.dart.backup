@@ -1,0 +1,173 @@
+import 'package:flutter/material.dart';
+import '../constants/app_constants.dart';
+import '../models/station_group.dart';
+import '../models/subway_station.dart';
+import 'station_detail_screen.dart';
+
+/// 호선 선택 화면
+class LineSelectionScreen extends StatelessWidget {
+  final StationGroup stationGroup;
+
+  const LineSelectionScreen({super.key, required this.stationGroup});
+
+  Color _getLineColor(String lineNumber) {
+    final colors = {
+      '1': const Color(0xFF263c96),
+      '2': const Color(0xFF00a650),
+      '3': const Color(0xFFef7c1c),
+      '4': const Color(0xFF00a4e3),
+      '5': const Color(0xFF996cac),
+      '6': const Color(0xFFcd7c2f),
+      '7': const Color(0xFF747f00),
+      '8': const Color(0xFFe6186c),
+      '9': const Color(0xFFbdb092),
+    };
+    return colors[lineNumber] ?? const Color(0xFF757575);
+  }
+
+  void _onLineSelected(BuildContext context, SubwayStation station) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StationDetailScreen(station: station),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('${stationGroup.cleanStationName}역'),
+        //        subtitle: Text('${stationGroup.stations.length}개 호선'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 안내 텍스트
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.medium),
+                border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '호선을 선택해주세요',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${stationGroup.cleanStationName}역은 ${stationGroup.stations.length}개의 호선이 지나갑니다. 원하는 호선을 선택하세요.',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+
+            // 호선 목록
+            Expanded(
+              child: ListView.builder(
+                itemCount: stationGroup.stations.length,
+                itemBuilder: (context, index) {
+                  final station = stationGroup.stations[index];
+                  final lineColor = _getLineColor(station.lineNumber);
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: Card(
+                      child: InkWell(
+                        onTap: () => _onLineSelected(context, station),
+                        borderRadius: BorderRadius.circular(AppRadius.medium),
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: Row(
+                            children: [
+                              // 호선 아이콘
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: lineColor,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    station.lineNumber,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(width: AppSpacing.md),
+
+                              // 호선 정보
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      station.subwayRouteName,
+                                      style: AppTextStyles.bodyMedium.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      station.subwayStationId,
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // 화살표 아이콘
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                color: AppColors.textSecondary,
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

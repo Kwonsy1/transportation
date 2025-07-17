@@ -3,6 +3,7 @@ import '../models/subway_station.dart';
 import '../models/subway_schedule.dart';
 import '../models/next_train_info.dart';
 import '../models/api_response.dart';
+import '../models/station_group.dart';
 import '../services/subway_api_service.dart';
 
 /// 지하철 정보 상태 관리 Provider (국토교통부 API 기준)
@@ -25,7 +26,19 @@ class SubwayProvider extends ChangeNotifier {
   List<SubwayStation> _searchResults = [];
   List<SubwayStation> get searchResults => _searchResults;
 
-  // 즐겨찾기 역 목록
+  // 그룹화된 검색 결과
+  List<StationGroup> _groupedSearchResults = [];
+  List<StationGroup> get groupedSearchResults => _groupedSearchResults;
+
+  // 검색 모드 (그룹 모드 여부)
+  bool _isGroupSearchMode = true;
+  bool get isGroupSearchMode => _isGroupSearchMode;
+
+  // 즐겨찾기 역 그룹 목록
+  final List<StationGroup> _favoriteStationGroups = [];
+  List<StationGroup> get favoriteStationGroups => _favoriteStationGroups;
+
+  // 기존 즐겨찾기 역 목록 (하위 호환성을 위해 유지)
   final List<SubwayStation> _favoriteStations = [];
   List<SubwayStation> get favoriteStations => _favoriteStations;
 
@@ -193,10 +206,11 @@ class SubwayProvider extends ChangeNotifier {
     }
   }
 
-  /// 역 검색
+  /// 역 검색 (그룹 모드 지원)
   Future<void> searchStations(String stationName) async {
     if (stationName.trim().isEmpty) {
       _searchResults = [];
+      _groupedSearchResults = [];
       notifyListeners();
       return;
     }
@@ -206,19 +220,79 @@ class SubwayProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // 기본 검색 수행
       _searchResults = await _apiService.searchStations(
         stationName: stationName.trim(),
       );
+
+      // 그룹 모드일 때 그룹화 수행
+      if (_isGroupSearchMode) {
+        _groupedSearchResults = StationGrouper.groupStations(_searchResults);
+      } else {
+        _groupedSearchResults = [];
+      }
     } catch (e) {
       _errorMessage = '역 검색에 실패했습니다: ${e.toString()}';
       _searchResults = [];
+      _groupedSearchResults = [];
     } finally {
       _isLoadingSearch = false;
       notifyListeners();
     }
   }
 
-  /// 즐겨찾기 추가
+  /// 검색 모드 전환
+  void toggleSearchMode() {
+    _isGroupSearchMode = !_isGroupSearchMode;
+    
+    // 현재 검색 결과가 있으면 다시 그룹화
+    if (_searchResults.isNotEmpty) {
+      if (_isGroupSearchMode) {
+        _groupedSearchResults = StationGrouper.groupStations(_searchResults);
+      } else {
+        _groupedSearchResults = [];
+      }
+    }
+    
+    notifyListeners();
+  }
+
+  /// 즐겨찾기 역 그룹 추가
+  void addFavoriteStationGroup(StationGroup stationGroup) {
+    if (!_favoriteStationGroups.any(
+      (g) => g.stationName == stationGroup.stationName,
+    )) {
+      _favoriteStationGroups.add(stationGroup);
+      notifyListeners();
+      _saveFavoritesToLocal();
+    }
+  }
+
+  /// 즐겨찾기 역 그룹 제거
+  void removeFavoriteStationGroup(StationGroup stationGroup) {
+    _favoriteStationGroups.removeWhere(
+      (g) => g.stationName == stationGroup.stationName,
+    );
+    notifyListeners();
+    _saveFavoritesToLocal();
+  }
+
+  /// 즐겨찾기 역 그룹 여부 확인
+  bool isFavoriteStationGroup(StationGroup stationGroup) {
+    return _favoriteStationGroups.any(
+      (g) => g.stationName == stationGroup.stationName,
+    );
+  }
+
+  /// 특정 역명이 즐겨찾기에 있는지 확인 (역명으로 검사)
+  bool isFavoriteStationByName(String stationName) {
+    final cleanName = stationName.replaceAll('역', '').trim();
+    return _favoriteStationGroups.any(
+      (g) => g.cleanStationName == cleanName,
+    );
+  }
+
+  /// 기존 즐겨찾기 추가 (개별 호선 - 하위 호환성)
   void addFavoriteStation(SubwayStation station) {
     if (!_favoriteStations.any(
       (s) => s.subwayStationId == station.subwayStationId,
@@ -240,11 +314,9 @@ class SubwayProvider extends ChangeNotifier {
     _saveFavoritesToLocal();
   }
 
-  /// 즐겨찾기 여부 확인
+  /// 기존 즐겨찾기 여부 확인 (개별 호선 - 하위 호환성, 그룹 기반으로 리다이렉트)
   bool isFavoriteStation(SubwayStation station) {
-    return _favoriteStations.any(
-      (s) => s.subwayStationId == station.subwayStationId,
-    );
+    return isFavoriteStationByName(station.subwayStationName);
   }
 
   /// 다음 열차 정보 새로고침
@@ -321,13 +393,15 @@ class SubwayProvider extends ChangeNotifier {
 
   void clearSearchResults() {
     _searchResults = [];
+    _groupedSearchResults = [];
     notifyListeners();
   }
 
   /// 로컬 저장소에 즐겨찾기 저장 (더미 구현)
   void _saveFavoritesToLocal() {
     // 실제 구현에서는 shared_preferences 등을 사용
-    print('즐겨찾기 저장: ${_favoriteStations.length}개');
+    print('즐겨찾기 그룹 저장: ${_favoriteStationGroups.length}개');
+    print('기존 즐겨찾기 역 저장: ${_favoriteStations.length}개');
   }
 
   /// 로컬 저장소에서 즐겨찾기 로드 (더미 구현)

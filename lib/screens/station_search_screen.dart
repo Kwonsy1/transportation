@@ -4,8 +4,9 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../constants/app_constants.dart';
 import '../providers/subway_provider.dart';
 import '../models/subway_station.dart';
-import '../widgets/station_card.dart';
-import 'station_detail_screen.dart';
+import '../models/station_group.dart';
+import '../widgets/station_group_card.dart';
+import 'multi_line_station_detail_screen.dart';
 
 /// 역 검색 화면
 class StationSearchScreen extends StatefulWidget {
@@ -34,15 +35,17 @@ class _StationSearchScreenState extends State<StationSearchScreen> {
     }
   }
 
-  void _onStationTap(SubwayStation station) {
+  void _onStationGroupTap(StationGroup stationGroup) {
     // 키보드 숨기기
     _searchFocusNode.unfocus();
     
-    // 역 상세 화면으로 이동
+    // 항상 통합 상세 화면으로 이동
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => StationDetailScreen(station: station),
+        builder: (context) => MultiLineStationDetailScreen(
+          stationGroup: stationGroup,
+        ),
       ),
     );
   }
@@ -128,7 +131,7 @@ class _StationSearchScreenState extends State<StationSearchScreen> {
                 }
 
                 // 검색 결과 없음
-                if (provider.searchResults.isEmpty) {
+                if (provider.groupedSearchResults.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -154,27 +157,32 @@ class _StationSearchScreenState extends State<StationSearchScreen> {
                   );
                 }
 
-                // 검색 결과 목록
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                  itemCount: provider.searchResults.length,
-                  itemBuilder: (context, index) {
-                    final station = provider.searchResults[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: StationCard(
-                        station: station,
-                        onTap: () => _onStationTap(station),
-                        showFavoriteButton: true,
-                      ),
-                    );
-                  },
-                );
+                // 그룹화된 검색 결과 전용
+                return _buildGroupedResults(provider);
               },
             ),
           ),
         ],
       ),
+    );
+  }
+
+  /// 그룹화된 검색 결과 빌드
+  Widget _buildGroupedResults(SubwayProvider provider) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      itemCount: provider.groupedSearchResults.length,
+      itemBuilder: (context, index) {
+        final stationGroup = provider.groupedSearchResults[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: StationGroupCard(
+            stationGroup: stationGroup,
+            onTap: () => _onStationGroupTap(stationGroup),
+            showFavoriteButton: true,
+          ),
+        );
+      },
     );
   }
 }

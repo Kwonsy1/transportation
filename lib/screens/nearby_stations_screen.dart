@@ -5,7 +5,8 @@ import '../constants/app_constants.dart';
 import '../providers/location_provider.dart';
 import '../models/subway_station.dart';
 import '../widgets/station_card.dart';
-import 'station_detail_screen.dart';
+import '../models/station_group.dart';
+import 'multi_line_station_detail_screen.dart';
 
 /// 주변 지하철역 화면
 class NearbyStationsScreen extends StatefulWidget {
@@ -63,10 +64,19 @@ class _NearbyStationsScreenState extends State<NearbyStationsScreen> {
   }
 
   void _onStationTap(SubwayStation station) {
+    // 선택한 역에 해당하는 StationGroup을 생성
+    final stationGroup = StationGroup(
+      stationName: station.stationName,
+      stations: [station],
+    );
+    
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => StationDetailScreen(station: station),
+        builder: (context) => MultiLineStationDetailScreen(
+          stationGroup: stationGroup,
+          initialStation: station,
+        ),
       ),
     );
   }

@@ -11,6 +11,12 @@ class ApiConstants {
   static const String naverMapClientSecret =
       'N4mEolnK5KGBQvcQDWqFzofQsp82uk7hLP36uZPQ'; // 실제 클라이언트 시크릿으로 교체 완료
 
+  // 네이버 지도 API
+  static const String naverAPIClientId =
+      'ZHKyi4UwAmsN4woa2cxK'; // 실제 클라이언트 ID로 교체 완료
+  static const String naverAPIClientSecret =
+      'uRJUhoasgJ'; // 실제 클라이언트 시크릿으로 교체 완료
+
   // 지하철정보 API 엔드포인트
   static const String stationSearchEndpoint = '/getKwrdFndSubwaySttnList';
   static const String exitBusRouteEndpoint =
