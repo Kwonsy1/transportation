@@ -2,12 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/subway_station.dart';
 import '../services/location_service.dart';
-import '../services/subway_api_service.dart';
+// import '../services/subway_api_service.dart'; // 사용하지 않음
 
 /// 위치 정보 상태 관리 Provider (국토교통부 API 기준)
 class LocationProvider extends ChangeNotifier {
   final LocationService _locationService = LocationService.instance;
-  final SubwayApiService _subwayApiService = SubwayApiService();
+  // final SubwayApiService _subwayApiService = SubwayApiService(); // 사용하지 않음
 
   // 서울시 주요 지하철역 좌표 데이터 (하드코딩)
   static const Map<String, Map<String, dynamic>> _seoulStationCoordinates = {
@@ -122,7 +122,7 @@ class LocationProvider extends ChangeNotifier {
     }
   }
 
-  /// 전체 지하철역 목록 로드 (캐시)
+  /// 전체 지하철역 목록 로드 (캐시) - 현재 사용하지 않음
   Future<void> _loadAllStations() async {
     if (_allStationsLoaded) return;
 
@@ -130,7 +130,8 @@ class LocationProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _allStations = await _subwayApiService.getAllStations();
+      // API 서비스 없이 빈 리스트로 처리
+      _allStations = [];
       _allStationsLoaded = true;
       print('전체 지하철역 로드 완료: ${_allStations.length}개');
     } catch (e) {

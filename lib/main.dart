@@ -5,15 +5,37 @@ import 'constants/app_constants.dart';
 import 'constants/api_constants.dart';
 import 'providers/subway_provider.dart';
 import 'providers/location_provider.dart';
+import 'providers/seoul_subway_provider.dart';
+import 'services/hive_subway_service.dart';
+import 'services/favorites_storage_service.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Hive 초기화
+  await _initializeHive();
+  
   // 네이버 맵 SDK 초기화
   await _initializeNaverMap();
   
   runApp(const TransportationApp());
+}
+
+/// Hive 데이터베이스 초기화
+Future<void> _initializeHive() async {
+  try {
+    // 지하철 정보 Hive 초기화
+    await HiveSubwayService.instance.initialize();
+    
+    // 즐겨찾기 Hive 초기화
+    await FavoritesStorageService.initialize();
+    
+    print('✅ Hive 데이터베이스 초기화 성공');
+  } catch (e) {
+    print('❌ Hive 초기화 오류: $e');
+    // Hive 초기화 실패 시 SharedPreferences 사용
+  }
 }
 
 /// 네이버 맵 SDK 초기화 (새로운 1.4.0 API)
@@ -90,6 +112,16 @@ class TransportationApp extends StatelessWidget {
               _initializeLocation(locationProvider);
             });
             return locationProvider;
+          },
+        ),
+        ChangeNotifierProvider(
+          create: (_) {
+            final seoulSubwayProvider = SeoulSubwayProvider();
+            // 앱 시작 시 서울 지하철 데이터 초기화
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              seoulSubwayProvider.initialize();
+            });
+            return seoulSubwayProvider;
           },
         ),
       ],

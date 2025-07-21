@@ -19,6 +19,7 @@ Flutter로 개발된 국토교통부 지하철 정보 API를 활용한 지하철
 - **상태 관리**: Provider
 - **HTTP 통신**: Dio
 - **지도**: 네이버 지도 네이티브 SDK (flutter_naver_map)
+- **로컬 저장소**: Hive (고성능 NoSQL 데이터베이스)
 - **위치 서비스**: Geolocator, Permission Handler
 - **JSON 직렬화**: json_annotation, json_serializable
 
@@ -80,12 +81,22 @@ class ApiConstants {
 }
 ```
 
-### 5. JSON 직렬화 코드 생성
+### 5. Hive 어댑터 생성
+```bash
+# 방법 1: 제공된 스크립트 사용
+chmod +x generate_hive_adapters.sh
+./generate_hive_adapters.sh
+
+# 방법 2: 직접 명령어 실행
+flutter packages pub run build_runner build --delete-conflicting-outputs
+```
+
+### 6. JSON 직렬화 코드 생성
 ```bash
 flutter packages pub run build_runner build --delete-conflicting-outputs
 ```
 
-### 6. 앱 실행
+### 7. 앱 실행
 ```bash
 flutter run
 ```
@@ -100,14 +111,21 @@ lib/
 │   ├── api_constants.dart
 │   └── app_constants.dart
 ├── models/             # 데이터 모델들
+│   ├── hive/           # Hive 전용 모델들
+│   │   ├── station_group_hive.dart
+│   │   └── seoul_subway_station_hive.dart
 │   ├── subway_station.dart
 │   ├── subway_schedule.dart
 │   ├── next_train_info.dart
+│   ├── station_group.dart
 │   └── api_response.dart
-├── services/           # API 서비스들
+├── services/           # API 및 로컬 저장소 서비스들
 │   ├── http_service.dart
 │   ├── subway_api_service.dart
-│   └── location_service.dart
+│   ├── location_service.dart
+│   ├── favorites_storage_service.dart       # 즐겨찾기 저장소 (Hive 기반)
+│   ├── hive_favorites_storage_service.dart  # Hive 즐겨찾기 서비스
+│   └── hive_subway_service.dart             # Hive 지하철 정보 서비스
 ├── providers/          # 상태 관리 (Provider)
 │   ├── subway_provider.dart
 │   └── location_provider.dart
@@ -130,6 +148,16 @@ lib/
 └── main.dart           # 앱 엔트리 포인트
 ```
 
+## 🆕 최근 업데이트 (v2.0)
+
+### SharedPreferences → Hive 마이그레이션
+- **성능 향상**: 더 빠른 읽기/쓰기 성능
+- **타입 안전성**: 컴파일 타임 오류 검출
+- **메모리 효율성**: 필요한 데이터만 메모리에 로드
+- **확장성**: 복잡한 객체 저장 가능
+
+자세한 내용은 `HIVE_MIGRATION_GUIDE.md`를 참고하세요.
+
 ## 🔧 개발 환경 설정
 
 ### Flutter 버전
@@ -147,12 +175,15 @@ dependencies:
   permission_handler: ^11.1.0    # 권한 관리
   provider: ^6.1.1              # 상태 관리
   json_annotation: ^4.8.1       # JSON 직렬화
+  hive: ^2.2.3                  # 고성능 로컬 데이터베이스
+  hive_flutter: ^1.1.0          # Flutter용 Hive 확장
   url_launcher: ^6.2.2          # URL 런처
   flutter_spinkit: ^5.2.0       # 로딩 인디케이터
 
 dev_dependencies:
   build_runner: ^2.4.7          # 코드 생성
   json_serializable: ^6.7.1     # JSON 직렬화 코드 생성
+  hive_generator: ^2.0.1        # Hive TypeAdapter 생성
 ```
 
 ## 📱 지원 플랫폼

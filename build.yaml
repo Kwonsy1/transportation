@@ -1,0 +1,7 @@
+targets:
+  $default:
+    builders:
+      hive_generator|hivegen:
+        enabled: true
+      json_serializable|json_serializable:
+        enabled: true

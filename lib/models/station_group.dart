@@ -62,6 +62,20 @@ class StationGroup {
   /// 거리 정보 (현재는 지원하지 않음)
   double? get distance => null;
 
+  /// 호선명 텍스트 (UI 표시용)
+  String get lineNamesText {
+    final lines = stations.map((station) => station.lineNumber).toSet().toList();
+    lines.sort((a, b) {
+      final numA = int.tryParse(a) ?? 999;
+      final numB = int.tryParse(b) ?? 999;
+      return numA.compareTo(numB);
+    });
+    return lines.map((line) => '${line}호선').join(', ');
+  }
+
+  /// 호선 개수
+  int get lineCount => stations.length;
+
   @override
   String toString() {
     return 'StationGroup(name: $stationName, lines: ${availableLines.length})';
