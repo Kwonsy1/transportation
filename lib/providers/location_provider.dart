@@ -20,15 +20,14 @@ class LocationProvider extends ChangeNotifier {
   List<SeoulSubwayStation> get visibleStations => _visibleStations;
 
   // 주변 역 목록 (하위 호환성을 위해 유지)
-  List<SubwayStation> get nearbyStations => _visibleStations
-      .map((station) => station.toSubwayStation())
-      .toList();
+  List<SubwayStation> get nearbyStations =>
+      _visibleStations.map((station) => station.toSubwayStation()).toList();
 
   // 현재 지도 영역 정보
   double _currentCenterLat = 37.5665; // 서울시청 기본값
   double _currentCenterLng = 126.9780;
   double _currentZoomLevel = 15.0;
-  
+
   double get currentCenterLat => _currentCenterLat;
   double get currentCenterLng => _currentCenterLng;
   double get currentZoomLevel => _currentZoomLevel;
@@ -62,7 +61,8 @@ class LocationProvider extends ChangeNotifier {
   Future<void> initializeLocationStatus() async {
     try {
       _hasLocationPermission = await _locationService.checkLocationPermission();
-      _isLocationServiceEnabled = await _locationService.isLocationServiceEnabled();
+      _isLocationServiceEnabled = await _locationService
+          .isLocationServiceEnabled();
       notifyListeners();
     } catch (e) {
       _errorMessage = '위치 권한 상태 확인에 실패했습니다: ${e.toString()}';
@@ -73,7 +73,8 @@ class LocationProvider extends ChangeNotifier {
   /// 위치 권한 요청
   Future<bool> requestLocationPermission() async {
     try {
-      _hasLocationPermission = await _locationService.requestLocationPermission();
+      _hasLocationPermission = await _locationService
+          .requestLocationPermission();
       notifyListeners();
       return _hasLocationPermission;
     } catch (e) {
@@ -110,17 +111,8 @@ class LocationProvider extends ChangeNotifier {
     _currentCenterLat = centerLat;
     _currentCenterLng = centerLng;
     _currentZoomLevel = zoomLevel;
-    
-    // 디바운스로 과도한 요청 방지
-    _debounceMapUpdate();
-  }
 
-  Timer? _debounceTimer;
-  void _debounceMapUpdate() {
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      loadVisibleStations();
-    });
+    loadVisibleStations();
   }
 
   /// 현재 화면에 보이는 역들만 로드 (동적)
@@ -136,20 +128,21 @@ class LocationProvider extends ChangeNotifier {
 
     try {
       // 줄 레벨에 따른 반지름 계산
-      final double radius = radiusKm ?? _calculateRadiusFromZoom(_currentZoomLevel);
-      
+      final double radius =
+          radiusKm ?? _calculateRadiusFromZoom(_currentZoomLevel);
+
       // Hive에서 좌표가 있는 모든 역 가져오기
       final allStations = _seoulSubwayProvider!.allStations
-          .where((station) => 
-              station.latitude != 0.0 && 
-              station.longitude != 0.0)
+          .where(
+            (station) => station.latitude != 0.0 && station.longitude != 0.0,
+          )
           .toList();
 
       print('📍 좌표가 있는 역: ${allStations.length}개');
 
       // 현재 지도 영역 내의 역들만 필터링
       final visibleStations = <SeoulSubwayStation>[];
-      
+
       for (final station in allStations) {
         final distance = _locationService.calculateDistance(
           startLatitude: _currentCenterLat,
@@ -157,8 +150,9 @@ class LocationProvider extends ChangeNotifier {
           endLatitude: station.latitude,
           endLongitude: station.longitude,
         );
-        
-        if (distance <= radius * 1000) { // km를 m로 변환
+
+        if (distance <= radius * 1000) {
+          // km를 m로 변환
           visibleStations.add(station);
         }
       }
@@ -186,11 +180,10 @@ class LocationProvider extends ChangeNotifier {
       print('🗺️ 화면 내 역 로드 완료: ${_visibleStations.length}개');
       print('📍 중심: $_currentCenterLat, $_currentCenterLng');
       print('🔍 반지름: ${radius.toStringAsFixed(1)}km');
-      
+
       if (_visibleStations.isNotEmpty) {
         print('🚇 가장 가까운 역: ${_visibleStations.first.stationName}');
       }
-
     } catch (e) {
       _errorMessage = '화면 내 역 검색에 실패했습니다: ${e.toString()}';
       _visibleStations = [];
@@ -204,10 +197,10 @@ class LocationProvider extends ChangeNotifier {
   /// 줄 레벨에 따른 검색 반지름 계산
   double _calculateRadiusFromZoom(double zoomLevel) {
     // 줄 레벨이 높을수록 더 세밀한 영역 표시
-    if (zoomLevel >= 18) return 0.5;  // 500m
-    if (zoomLevel >= 16) return 1.0;  // 1km
-    if (zoomLevel >= 14) return 2.0;  // 2km
-    if (zoomLevel >= 12) return 5.0;  // 5km
+    if (zoomLevel >= 18) return 0.5; // 500m
+    if (zoomLevel >= 16) return 1.0; // 1km
+    if (zoomLevel >= 14) return 2.0; // 2km
+    if (zoomLevel >= 12) return 5.0; // 5km
     if (zoomLevel >= 10) return 10.0; // 10km
     return 20.0; // 20km
   }
@@ -291,11 +284,13 @@ class LocationProvider extends ChangeNotifier {
   /// 특정 역명으로 화면 내 역 필터링
   List<SeoulSubwayStation> filterStationsByName(String query) {
     if (query.isEmpty) return _visibleStations;
-    
+
     return _visibleStations
-        .where((station) => 
-            station.stationName.contains(query) ||
-            station.lineName.contains(query))
+        .where(
+          (station) =>
+              station.stationName.contains(query) ||
+              station.lineName.contains(query),
+        )
         .toList();
   }
 
@@ -319,7 +314,6 @@ class LocationProvider extends ChangeNotifier {
   /// 리소스 정리
   @override
   void dispose() {
-    _debounceTimer?.cancel();
     super.dispose();
   }
 }

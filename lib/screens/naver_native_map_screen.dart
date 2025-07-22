@@ -68,6 +68,16 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
     if (!seoulSubwayProvider.hasStations && !seoulSubwayProvider.isLoading) {
       print('🚇 SeoulSubwayProvider 데이터 초기화 시작...');
       await seoulSubwayProvider.initialize();
+      print(
+        '🚇 SeoulSubwayProvider 데이터 초기화 완료: ${seoulSubwayProvider.hasStations}',
+      );
+    } else if (seoulSubwayProvider.isLoading) {
+      // 이미 로딩 중이면 완료될 때까지 대기
+      print('🚇 SeoulSubwayProvider 로딩 중, 대기...');
+      while (seoulSubwayProvider.isLoading) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      print('🚇 SeoulSubwayProvider 로딩 완료: ${seoulSubwayProvider.hasStations}');
     }
   }
 
@@ -77,6 +87,13 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
     print('🗺️ 네이버 지도 준비 완료');
 
     final locationProvider = context.read<LocationProvider>();
+    final seoulSubwayProvider = context.read<SeoulSubwayProvider>();
+
+    // 데이터 초기화가 완료될 때까지 대기
+    if (!seoulSubwayProvider.hasStations) {
+      print('🚇 SeoulSubwayProvider 데이터 초기화 대기 중...');
+      await _initializeData();
+    }
 
     // 현재 위치가 있으면 표시
     if (locationProvider.currentPosition != null) {
@@ -95,20 +112,17 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       );
       await _mapController!.updateCamera(cameraUpdate);
     }
-
-    // 초기 화면의 역 로드
-    await _loadVisibleStations();
   }
 
   /// 카메라 변경 콜백 (지도 이동 시)
   void _onCameraChange(NCameraUpdateReason reason, bool isAnimated) {
     // 디바운스로 과도한 호출 방지
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        _loadVisibleStations();
-      }
-    });
+    // _debounceTimer?.cancel();
+    // _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+    //   if (mounted) {
+    //     _loadVisibleStations();
+    //   }
+    // });
   }
 
   /// 카메라 변경 완료 콜백
@@ -197,17 +211,26 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       for (int i = 0; i < stationsToShow.length; i++) {
         final station = stationsToShow[i];
 
-        // 마커 생성
-        final marker = await _createStationMarker(station, i);
+        try {
+          // 마커 생성
+          final marker = await _createStationMarker(station, i);
 
-        // 마커 클릭 이벤트
-        marker.setOnTapListener((overlay) {
-          _showStationInfo(station);
-        });
+          // 마커 클릭 이벤트
+          marker.setOnTapListener((overlay) {
+            _showStationInfo(station);
+          });
 
-        // 지도에 추가
-        await _mapController!.addOverlay(marker);
-        _stationMarkers.add(marker);
+          // 지도에 추가
+          await _mapController!.addOverlay(marker);
+          _stationMarkers.add(marker);
+
+          print(
+            '📍 마커 추가 완료: ${station.stationName} (총 ${_stationMarkers.length}개)',
+          );
+        } catch (e) {
+          print('❌ 마커 추가 실패: ${station.stationName} - $e');
+          // 개별 마커 실패는 무시하고 계속
+        }
       }
 
       print('✅ 마커 ${_stationMarkers.length}개 추가 완료');
@@ -221,44 +244,56 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
     SeoulSubwayStation station,
     int index,
   ) async {
-    final markerIcon = await NOverlayImage.fromWidget(
-      widget: Container(
-        width: 30,
-        height: 30,
-        decoration: BoxDecoration(
-          color: _getLineColor(station.lineName),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 2),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 4,
-              offset: Offset(0, 2),
+    try {
+      print('🎯 마커 생성 시도: ${station.stationName} (${station.lineName})');
+
+      final markerIcon = await NOverlayImage.fromWidget(
+        widget: Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: _getLineColor(station.lineName),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              _getLineShortName(station.lineName),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            _getLineShortName(station.lineName),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
           ),
         ),
-      ),
-      size: const Size(30, 30),
-      context: context,
-    );
+        size: const Size(30, 30),
+        context: context,
+      );
 
-    return NMarker(
-      id: 'station_$index',
-      position: NLatLng(station.latitude, station.longitude),
-      icon: markerIcon,
-      anchor: const NPoint(0.5, 0.5),
-    );
+      final marker = NMarker(
+        id: 'station_$index',
+        position: NLatLng(station.latitude, station.longitude),
+        icon: markerIcon,
+        anchor: const NPoint(0.5, 0.5),
+      );
+
+      print(
+        '✅ 마커 생성 성공: ${station.stationName} (${station.latitude}, ${station.longitude})',
+      );
+      return marker;
+    } catch (e) {
+      print('❌ 마커 생성 실패: ${station.stationName} - $e');
+      rethrow;
+    }
   }
 
   /// 역 마커들 제거

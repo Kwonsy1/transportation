@@ -12,13 +12,13 @@ import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Hive 초기화
   await _initializeHive();
-  
+
   // 네이버 맵 SDK 초기화
   await _initializeNaverMap();
-  
+
   runApp(const TransportationApp());
 }
 
@@ -27,10 +27,10 @@ Future<void> _initializeHive() async {
   try {
     // 지하철 정보 Hive 초기화
     await HiveSubwayService.instance.initialize();
-    
+
     // 즐겨찾기 Hive 초기화
     await FavoritesStorageService.initialize();
-    
+
     print('✅ Hive 데이터베이스 초기화 성공');
   } catch (e) {
     print('❌ Hive 초기화 오류: $e');
@@ -44,14 +44,12 @@ Future<void> _initializeNaverMap() async {
     await FlutterNaverMap().init(
       clientId: ApiConstants.naverMapClientId,
       onAuthFailed: (ex) => switch (ex) {
-        NQuotaExceededException(:final message) => 
-          print('네이버맵 사용량 초과: $message'),
-        NUnauthorizedClientException() => 
-          print('네이버맵 인증되지 않은 클라이언트'),
-        NClientUnspecifiedException() => 
-          print('네이버맵 클라이언트 미지정'),
-        NAnotherAuthFailedException() => 
-          print('네이버맵 기타 인증 실패'),
+        NQuotaExceededException(:final message) => print(
+          '네이버맵 사용량 초과: $message',
+        ),
+        NUnauthorizedClientException() => print('네이버맵 인증되지 않은 클라이언트'),
+        NClientUnspecifiedException() => print('네이버맵 클라이언트 미지정'),
+        NAnotherAuthFailedException() => print('네이버맵 기타 인증 실패'),
       },
     );
     print('네이버 맵 SDK 1.4.0 초기화 성공');
@@ -102,7 +100,7 @@ class TransportationApp extends StatelessWidget {
           primaryColor: AppColors.primary,
           scaffoldBackgroundColor: AppColors.background,
           fontFamily: 'NotoSans',
-          
+
           // AppBar 테마
           appBarTheme: const AppBarTheme(
             backgroundColor: AppColors.primary,
@@ -115,7 +113,7 @@ class TransportationApp extends StatelessWidget {
               color: AppColors.textLight,
             ),
           ),
-          
+
           // Card 테마
           cardTheme: CardThemeData(
             color: AppColors.surface,
@@ -124,7 +122,7 @@ class TransportationApp extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.medium),
             ),
           ),
-          
+
           // ElevatedButton 테마
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
@@ -140,7 +138,7 @@ class TransportationApp extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // TextButton 테마
           textButtonTheme: TextButtonThemeData(
             style: TextButton.styleFrom(
@@ -150,7 +148,7 @@ class TransportationApp extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // InputDecoration 테마
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
@@ -176,7 +174,7 @@ class TransportationApp extends StatelessWidget {
               vertical: AppSpacing.md,
             ),
           ),
-          
+
           // BottomNavigationBar 테마
           bottomNavigationBarTheme: const BottomNavigationBarThemeData(
             backgroundColor: AppColors.surface,
@@ -185,7 +183,7 @@ class TransportationApp extends StatelessWidget {
             type: BottomNavigationBarType.fixed,
             elevation: 8,
           ),
-          
+
           // ListTile 테마
           listTileTheme: const ListTileThemeData(
             contentPadding: EdgeInsets.symmetric(
