@@ -2,17 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'dart:async';
+import 'dart:math';
 import '../constants/app_constants.dart';
-import '../constants/api_constants.dart';
 import '../providers/location_provider.dart';
 import '../providers/seoul_subway_provider.dart';
-import '../models/subway_station.dart';
 import '../models/seoul_subway_station.dart';
 import '../models/station_group.dart';
-import '../services/seoul_subway_api_service.dart';
 import 'multi_line_station_detail_screen.dart';
 
-/// 네이버 지도 네이티브 화면 (서울 지하철 API 사용)
+/// 네이버 지도 네이티브 화면 (동적 마커 로딩)
 class NaverNativeMapScreen extends StatefulWidget {
   const NaverNativeMapScreen({super.key});
 
@@ -24,312 +23,257 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
   NaverMapController? _mapController;
   bool _isLoading = false;
   String? _errorMessage;
-  final List<NMarker> _markers = [];
+  final List<NMarker> _stationMarkers = [];
   NMarker? _currentLocationMarker;
-  List<SeoulSubwayStation> _displayedStations = [];
+
+  // 현재 지도 상태
+  NCameraPosition? _currentCameraPosition;
+  List<SeoulSubwayStation> _visibleStations = [];
+
+  // 디바운스 타이머
+  Timer? _debounceTimer;
 
   @override
   void initState() {
     super.initState();
-    print('서울 지하철 지도 화면 시작');
-    
-    // 앱 시작 시 지하철역 마커 자동 로드
+    print('🗺️ 네이티브 지도 화면 시작');
+
+    // LocationProvider 변경 리스너
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadSeoulSubwayStations();
+      final locationProvider = context.read<LocationProvider>();
+      final seoulSubwayProvider = context.read<SeoulSubwayProvider>();
+
+      // LocationProvider에 SeoulSubwayProvider 설정
+      locationProvider.setSeoulSubwayProvider(seoulSubwayProvider);
+
+      // 데이터 초기화
+      _initializeData();
     });
   }
 
-  /// 서울 지하철 API 데이터로 역 로드
-  Future<void> _loadSeoulSubwayStations() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _mapController?.dispose();
+    super.dispose();
+  }
 
-      final seoulSubwayProvider = context.read<SeoulSubwayProvider>();
-      
-      // 데이터가 없으면 초기화
-      if (!seoulSubwayProvider.hasStations) {
-        await seoulSubwayProvider.initialize();
-      }
+  /// 데이터 초기화
+  Future<void> _initializeData() async {
+    final seoulSubwayProvider = context.read<SeoulSubwayProvider>();
 
-      // 모든 서울 지하철역 가져오기
-      final allStations = seoulSubwayProvider.allStations;
-      
-      // 좌표가 있는 역들만 필터링
-      final stationsWithCoordinates = allStations
-          .where((station) => station.latitude != 0.0 && station.longitude != 0.0)
-          .toList();
-
-      setState(() {
-        _displayedStations = stationsWithCoordinates;
-        _isLoading = false;
-      });
-
-      print('서울 지하철역 로드 완료: 전체 ${allStations.length}개, 좌표 있음 ${stationsWithCoordinates.length}개');
-
-      // 지도가 준비되었으면 마커 추가
-      if (_mapController != null) {
-        await _addSeoulSubwayStationMarkers();
-      }
-
-    } catch (e) {
-      print('서울 지하철역 로드 오류: $e');
-      setState(() {
-        _isLoading = false;
-        _errorMessage = '지하철역 정보를 불러오는데 실패했습니다: $e';
-      });
+    // SeoulSubwayProvider 데이터가 없으면 초기화
+    if (!seoulSubwayProvider.hasStations && !seoulSubwayProvider.isLoading) {
+      print('🚇 SeoulSubwayProvider 데이터 초기화 시작...');
+      await seoulSubwayProvider.initialize();
     }
   }
 
+  /// 지도 준비 완료 콜백
   Future<void> _onMapReady(NaverMapController controller) async {
     _mapController = controller;
-    print('네이버 지도 준비 완료');
-    
+    print('🗺️ 네이버 지도 준비 완료');
+
     final locationProvider = context.read<LocationProvider>();
-    
-    // 현재 위치가 있으면 지도에 표시
+
+    // 현재 위치가 있으면 표시
     if (locationProvider.currentPosition != null) {
       await _addCurrentLocationMarker(
         locationProvider.currentPosition!.latitude,
         locationProvider.currentPosition!.longitude,
       );
-    }
-    
-    // 서울 지하철역 마커 추가
-    if (_displayedStations.isNotEmpty) {
-      await _addSeoulSubwayStationMarkers();
-    } else {
-      // 없으면 새로 로드
-      await _loadSeoulSubwayStations();
-    }
-  }
 
-  /// 서울 지하철 API 데이터로 마커 추가
-  Future<void> _addSeoulSubwayStationMarkers() async {
-    if (_mapController == null || _displayedStations.isEmpty) return;
-
-    try {
-      print('서울 지하철역 마커 추가 시작: ${_displayedStations.length}개');
-
-      // 기존 지하철역 마커들 제거
-      await _clearSubwayMarkers();
-
-      // 마커 표시 개수 제한 (성능을 위해 200개로 제한)
-      final maxMarkers = 200;
-      final stationsToShow = _displayedStations.length > maxMarkers 
-          ? _displayedStations.take(maxMarkers).toList()
-          : _displayedStations;
-
-      for (int i = 0; i < stationsToShow.length; i++) {
-        final station = stationsToShow[i];
-        
-        // 마커 아이콘 생성
-        final markerIcon = await _buildStationMarkerIcon(station.lineName, context);
-        
-        final marker = NMarker(
-          id: 'seoul_station_$i',
-          position: NLatLng(station.latitude, station.longitude),
-          icon: markerIcon,
-          anchor: const NPoint(0.5, 0.5),
-        );
-
-        // 마커 클릭 이벤트 - 역 정보 표시
-        marker.setOnTapListener((overlay) {
-          print('${station.stationName} 마커 클릭됨');
-          _showSeoulStationInfo(station);
-        });
-
-        await _mapController!.addOverlay(marker);
-        _markers.add(marker);
-      }
-
-      print('서울 지하철역 마커 ${_markers.length}개 추가 완료');
-      setState(() {});
-      
-    } catch (e) {
-      print('서울 지하철역 마커 추가 오류: $e');
-    }
-  }
-
-  /// 서울 지하철역 정보 표시
-  void _showSeoulStationInfo(SeoulSubwayStation station) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.6,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 역명과 호선
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: _getLineColor(station.lineName),
-                  radius: 16,
-                  child: Text(
-                    station.lineName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        station.stationName,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '${station.lineName}호선',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // 상세 정보
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: [
-                    _buildInfoRow(Icons.location_on, '위치', 
-                        '${station.latitude.toStringAsFixed(6)}, ${station.longitude.toStringAsFixed(6)}'),
-                    if (station.stationCode != null)
-                      _buildInfoRow(Icons.confirmation_number, '역코드', station.stationCode!),
-                    if (station.subwayTypeName != null)
-                      _buildInfoRow(Icons.train, '지하철구분', station.subwayTypeName!),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // 액션 버튼들
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _navigateToStationDetail(station);
-                    },
-                    icon: const Icon(Icons.info_outline),
-                    label: const Text('상세 정보'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _moveToStation(station);
-                    },
-                    icon: const Icon(Icons.center_focus_strong),
-                    label: const Text('지도 중심'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 8),
-            
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('닫기'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 정보 행 빌더
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: Colors.grey[600]),
-          const SizedBox(width: 8),
-          Text(
-            '$label: ',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(color: Colors.grey[700]),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 역 상세 페이지로 이동
-  void _navigateToStationDetail(SeoulSubwayStation seoulStation) {
-    // SeoulSubwayStation을 SubwayStation으로 변환
-    final station = seoulStation.toSubwayStation();
-    
-    // StationGroup 생성
-    final stationGroup = StationGroup(
-      stationName: station.stationName,
-      stations: [station],
-    );
-    
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => MultiLineStationDetailScreen(
-          stationGroup: stationGroup,
-          initialStation: station,
-        ),
-      ),
-    );
-  }
-
-  /// 지도를 해당 역 중심으로 이동
-  Future<void> _moveToStation(SeoulSubwayStation station) async {
-    if (_mapController != null) {
+      // 현재 위치로 카메라 이동
       final cameraUpdate = NCameraUpdate.scrollAndZoomTo(
-        target: NLatLng(station.latitude, station.longitude),
-        zoom: 16,
+        target: NLatLng(
+          locationProvider.currentPosition!.latitude,
+          locationProvider.currentPosition!.longitude,
+        ),
+        zoom: 15,
       );
       await _mapController!.updateCamera(cameraUpdate);
     }
+
+    // 초기 화면의 역 로드
+    await _loadVisibleStations();
   }
 
+  /// 카메라 변경 콜백 (지도 이동 시)
+  void _onCameraChange(NCameraUpdateReason reason, bool isAnimated) {
+    // 디바운스로 과도한 호출 방지
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _loadVisibleStations();
+      }
+    });
+  }
+
+  /// 카메라 변경 완료 콜백
+  void _onCameraIdle() {
+    _loadVisibleStations();
+  }
+
+  /// 현재 화면에 보이는 역들 로드
+  Future<void> _loadVisibleStations() async {
+    if (_mapController == null) return;
+
+    try {
+      // 현재 카메라 위치 가져오기
+      final cameraPosition = await _mapController!.getCameraPosition();
+      _currentCameraPosition = cameraPosition;
+
+      final center = cameraPosition.target;
+      final zoomLevel = cameraPosition.zoom;
+
+      print('📍 지도 중심: ${center.latitude}, ${center.longitude}, 줌: $zoomLevel');
+
+      // LocationProvider 업데이트
+      final locationProvider = context.read<LocationProvider>();
+      locationProvider.updateMapBounds(
+        center.latitude,
+        center.longitude,
+        zoomLevel,
+      );
+
+      // 화면 내 역 가져오기
+      final stations = locationProvider.visibleStations;
+
+      if (stations.isEmpty) {
+        print('🚇 표시할 역이 없음');
+        return;
+      }
+
+      setState(() {
+        _visibleStations = stations;
+      });
+
+      // 마커 업데이트
+      await _updateStationMarkers(stations);
+    } catch (e) {
+      print('❌ 화면 내 역 로드 오류: $e');
+    }
+  }
+
+  /// 역 마커 업데이트
+  Future<void> _updateStationMarkers(List<SeoulSubwayStation> stations) async {
+    if (_mapController == null || _currentCameraPosition == null) return;
+
+    try {
+      // 기존 역 마커들 제거
+      await _clearStationMarkers();
+
+      // 지도 중심점 가져오기
+      final center = _currentCameraPosition!.target;
+
+      // 지도 중심점으로부터 거리순으로 정렬
+      final stationsWithDistance = stations.map((station) {
+        final distance = _calculateDistance(
+          center.latitude,
+          center.longitude,
+          station.latitude,
+          station.longitude,
+        );
+        return {'station': station, 'distance': distance};
+      }).toList();
+
+      // 거리순으로 정렬
+      stationsWithDistance.sort(
+        (a, b) => (a['distance'] as double).compareTo(b['distance'] as double),
+      );
+
+      // 가장 가까운 60개만 선택
+      final stationsToShow = stationsWithDistance
+          .take(60)
+          .map((item) => item['station'] as SeoulSubwayStation)
+          .toList();
+
+      print(
+        '🚇 지도 중심(${center.latitude.toStringAsFixed(4)}, ${center.longitude.toStringAsFixed(4)})에서 가장 가까운 ${stationsToShow.length}개 마커 추가',
+      );
+
+      for (int i = 0; i < stationsToShow.length; i++) {
+        final station = stationsToShow[i];
+
+        // 마커 생성
+        final marker = await _createStationMarker(station, i);
+
+        // 마커 클릭 이벤트
+        marker.setOnTapListener((overlay) {
+          _showStationInfo(station);
+        });
+
+        // 지도에 추가
+        await _mapController!.addOverlay(marker);
+        _stationMarkers.add(marker);
+      }
+
+      print('✅ 마커 ${_stationMarkers.length}개 추가 완료');
+    } catch (e) {
+      print('❌ 마커 업데이트 오류: $e');
+    }
+  }
+
+  /// 역 마커 생성
+  Future<NMarker> _createStationMarker(
+    SeoulSubwayStation station,
+    int index,
+  ) async {
+    final markerIcon = await NOverlayImage.fromWidget(
+      widget: Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          color: _getLineColor(station.lineName),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 2),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            _getLineShortName(station.lineName),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+      size: const Size(30, 30),
+      context: context,
+    );
+
+    return NMarker(
+      id: 'station_$index',
+      position: NLatLng(station.latitude, station.longitude),
+      icon: markerIcon,
+      anchor: const NPoint(0.5, 0.5),
+    );
+  }
+
+  /// 역 마커들 제거
+  Future<void> _clearStationMarkers() async {
+    if (_mapController == null) return;
+
+    try {
+      for (final marker in _stationMarkers) {
+        await _mapController!.deleteOverlay(marker.info);
+      }
+      _stationMarkers.clear();
+    } catch (e) {
+      print('❌ 마커 제거 오류: $e');
+    }
+  }
+
+  /// 현재 위치 마커 추가
   Future<void> _addCurrentLocationMarker(double lat, double lng) async {
     if (_mapController == null) return;
 
@@ -347,30 +291,14 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFF4285F4),
             shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.white,
-              width: 3,
-            ),
+            border: Border.all(color: Colors.white, width: 3),
             boxShadow: const [
               BoxShadow(
                 color: Colors.black26,
                 blurRadius: 6,
                 offset: Offset(0, 3),
               ),
-              BoxShadow(
-                color: Color(0xFF4285F4),
-                blurRadius: 12,
-                spreadRadius: -3,
-                offset: Offset(0, 0),
-              ),
             ],
-          ),
-          child: Container(
-            margin: const EdgeInsets.all(6),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
           ),
         ),
         size: const Size(24, 24),
@@ -388,86 +316,13 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       // 마커를 지도에 추가
       await _mapController!.addOverlay(_currentLocationMarker!);
 
-      // 정보창 설정
-      final infoWindow = NInfoWindow.onMarker(
-        id: _currentLocationMarker!.info.id,
-        text: '현재 위치',
-      );
-      _currentLocationMarker!.openInfoWindow(infoWindow);
-
-      print('현재 위치 마커 추가 완료: $lat, $lng');
+      print('📍 현재 위치 마커 추가: $lat, $lng');
     } catch (e) {
-      print('현재 위치 마커 추가 오류: $e');
+      print('❌ 현재 위치 마커 추가 오류: $e');
     }
   }
 
-  /// 지하철역 마커 아이콘 생성
-  Future<NOverlayImage> _buildStationMarkerIcon(String lineNumber, BuildContext context) async {
-    final color = _getLineColor(lineNumber);
-    return await NOverlayImage.fromWidget(
-      widget: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: Colors.white,
-            width: 3,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 6,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            lineNumber,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
-      size: const Size(28, 28),
-      context: context,
-    );
-  }
-
-  Color _getLineColor(String lineNumber) {
-    final colors = {
-      '1': const Color(0xFF263c96),
-      '2': const Color(0xFF00a650),
-      '3': const Color(0xFFef7c1c),
-      '4': const Color(0xFF00a4e3),
-      '5': const Color(0xFF996cac),
-      '6': const Color(0xFFcd7c2f),
-      '7': const Color(0xFF747f00),
-      '8': const Color(0xFFe6186c),
-      '9': const Color(0xFFbdb092),
-    };
-    return colors[lineNumber] ?? const Color(0xFF757575);
-  }
-
-  Future<void> _clearSubwayMarkers() async {
-    if (_mapController == null) return;
-
-    try {
-      for (final marker in _markers) {
-        await _mapController!.deleteOverlay(marker.info);
-      }
-      _markers.clear();
-      print('지하철역 마커 제거 완료');
-    } catch (e) {
-      print('지하철역 마커 제거 오류: $e');
-    }
-  }
-
+  /// 현재 위치 가져오기
   Future<void> _getCurrentLocation() async {
     try {
       setState(() {
@@ -477,126 +332,397 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
 
       final locationProvider = context.read<LocationProvider>();
 
-      // 위치 권한 확인
+      // 위치 권한 처리
       if (!locationProvider.hasLocationPermission) {
-        final granted = await locationProvider.requestLocationPermission();
-        if (!granted) {
-          setState(() {
-            _isLoading = false;
-            _errorMessage = '위치 권한이 필요합니다.';
-          });
-          return;
+        await locationProvider.initializeLocationStatus();
+
+        if (!locationProvider.hasLocationPermission) {
+          final granted = await locationProvider.requestLocationPermission();
+          if (!granted) {
+            setState(() {
+              _isLoading = false;
+              _errorMessage = '위치 권한이 필요합니다. 설정에서 권한을 허용해주세요.';
+            });
+            return;
+          }
         }
       }
 
       // 현재 위치 가져오기
       await locationProvider.getCurrentLocation();
-      
+
       if (locationProvider.currentPosition != null) {
         final lat = locationProvider.currentPosition!.latitude;
         final lng = locationProvider.currentPosition!.longitude;
 
-        // 지도 카메라 이동
+        print('📍 현재 위치: $lat, $lng');
+
+        // 지도 중심 이동
         if (_mapController != null) {
           final cameraUpdate = NCameraUpdate.scrollAndZoomTo(
             target: NLatLng(lat, lng),
-            zoom: 15,
+            zoom: 16,
           );
           await _mapController!.updateCamera(cameraUpdate);
         }
 
         // 현재 위치 마커 추가
         await _addCurrentLocationMarker(lat, lng);
+
+        // 성공 메시지
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('현재 위치로 이동했습니다'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
       } else {
         setState(() {
-          _errorMessage = '위치를 가져올 수 없습니다.';
+          _errorMessage = '위치를 가져올 수 없습니다. GPS가 켜져 있는지 확인해주세요.';
         });
       }
-
-      setState(() {
-        _isLoading = false;
-      });
     } catch (e) {
-      print('위치 가져오기 오류: $e');
+      print('❌ 위치 가져오기 오류: $e');
       setState(() {
-        _isLoading = false;
-        _errorMessage = '위치를 가져오는데 실패했습니다.';
+        _errorMessage = '위치를 가져오는데 실패했습니다: ${e.toString()}';
       });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  /// 역 정보 표시
+  void _showStationInfo(SeoulSubwayStation station) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 역명과 호선
+            Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: _getLineColor(station.lineName),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _getLineShortName(station.lineName),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(station.stationName, style: AppTextStyles.heading2),
+                      Text(
+                        station.lineName,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+
+            // 상세 정보
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  children: [
+                    _buildInfoRow(
+                      Icons.location_on,
+                      '위치',
+                      '${station.latitude.toStringAsFixed(6)}, ${station.longitude.toStringAsFixed(6)}',
+                    ),
+                    if (station.stationCode != null)
+                      _buildInfoRow(
+                        Icons.confirmation_number,
+                        '역코드',
+                        station.stationCode!,
+                      ),
+                    if (station.subwayTypeName != null)
+                      _buildInfoRow(
+                        Icons.train,
+                        '지하철구분',
+                        station.subwayTypeName!,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+
+            // 액션 버튼들
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _navigateToStationDetail(station);
+                    },
+                    icon: const Icon(Icons.info_outline),
+                    label: const Text('상세 정보'),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _moveToStation(station);
+                    },
+                    icon: const Icon(Icons.center_focus_strong),
+                    label: const Text('지도 중심'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('닫기'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 정보 행 위젯
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          Text(
+            '$label: ',
+            style: AppTextStyles.bodyMedium.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTextStyles.bodyMedium.copyWith(color: Colors.grey[700]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 역 상세 페이지로 이동
+  void _navigateToStationDetail(SeoulSubwayStation seoulStation) {
+    final station = seoulStation.toSubwayStation();
+    final stationGroup = StationGroup(
+      stationName: station.stationName,
+      stations: [station],
+    );
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => MultiLineStationDetailScreen(
+          stationGroup: stationGroup,
+          initialStation: station,
+        ),
+      ),
+    );
+  }
+
+  /// 두 지점 간의 거리 계산 (Haversine 공식)
+  double _calculateDistance(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
+    const double earthRadius = 6371000; // 지구 반지름 (미터)
+    final dLat = (lat2 - lat1) * (pi / 180);
+    final dLon = (lon2 - lon1) * (pi / 180);
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1 * (pi / 180)) *
+            cos(lat2 * (pi / 180)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return earthRadius * c;
+  }
+
+  /// 지도를 해당 역 중심으로 이동
+  Future<void> _moveToStation(SeoulSubwayStation station) async {
+    if (_mapController != null) {
+      final cameraUpdate = NCameraUpdate.scrollAndZoomTo(
+        target: NLatLng(station.latitude, station.longitude),
+        zoom: 17,
+      );
+      await _mapController!.updateCamera(cameraUpdate);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${station.stationName}으로 이동'),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    }
+  }
+
+  /// 노선별 색상
+  Color _getLineColor(String lineName) {
+    final Map<String, Color> lineColors = {
+      '1호선': const Color(0xFF0052A4),
+      '2호선': const Color(0xFF00A84D),
+      '3호선': const Color(0xFFEF7C1C),
+      '4호선': const Color(0xFF00A5DE),
+      '5호선': const Color(0xFF996CAC),
+      '6호선': const Color(0xFFCD7C2F),
+      '7호선': const Color(0xFF747F00),
+      '8호선': const Color(0xFFE6186C),
+      '9호선': const Color(0xFFBB8336),
+      '경의중앙선': const Color(0xFF77C4A3),
+      '분당선': const Color(0xFFFFD320),
+      '신분당선': const Color(0xFFD31145),
+      '경춘선': const Color(0xFF178C72),
+      '수인분당선': const Color(0xFFFFD320),
+      '우이신설선': const Color(0xFFB7C452),
+      '서해선': const Color(0xFF81A914),
+      '김포골드라인': const Color(0xFFB69240),
+      '신림선': const Color(0xFF6789CA),
+    };
+
+    for (final entry in lineColors.entries) {
+      if (lineName.contains(entry.key) || entry.key.contains(lineName)) {
+        return entry.value;
+      }
+    }
+
+    return Colors.grey[600] ?? Colors.grey;
+  }
+
+  /// 노선 이름 축약
+  String _getLineShortName(String lineName) {
+    final numberRegex = RegExp(r'(\d+)');
+    final match = numberRegex.firstMatch(lineName);
+    if (match != null) {
+      final number = match.group(1) ?? '';
+      // 한 자리 숫자만 표시 (예: 01 -> 1, 02 -> 2)
+      return int.tryParse(number)?.toString() ?? number;
+    }
+
+    final Map<String, String> specialLines = {
+      '경의중앙선': '경의',
+      '분당선': '분당',
+      '신분당선': '신분',
+      '경춘선': '경춘',
+      '수인분당선': '수인',
+      '우이신설선': '우이',
+      '서해선': '서해',
+      '김포골드라인': '김포',
+      '신림선': '신림',
+    };
+
+    for (final entry in specialLines.entries) {
+      if (lineName.contains(entry.key)) {
+        return entry.value;
+      }
+    }
+
+    return lineName.length >= 2 ? lineName.substring(0, 2) : lineName;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('서울 지하철 지도'),
+        title: const Text('지하철 지도'),
         actions: [
-          // 서울 지하철역 새로고침 버튼
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () async {
-              await _loadSeoulSubwayStations();
-            },
-            tooltip: '지하철역 새로고침',
+            icon: const Icon(Icons.my_location),
+            onPressed: _isLoading ? null : _getCurrentLocation,
           ),
           PopupMenuButton<String>(
             onSelected: (value) async {
-              switch (value) {
-                case 'refresh_all':
-                  setState(() {
-                    _isLoading = true;
-                  });
-                  await _clearSubwayMarkers();
-                  await _loadSeoulSubwayStations();
-                  await _getCurrentLocation();
-                  setState(() {
-                    _isLoading = false;
-                  });
-                  break;
-                case 'clear':
-                  await _clearSubwayMarkers();
-                  if (_currentLocationMarker != null && _mapController != null) {
-                    await _mapController!.deleteOverlay(_currentLocationMarker!.info);
-                    _currentLocationMarker = null;
-                  }
-                  setState(() {
-                    _displayedStations = [];
-                  });
-                  break;
-                case 'seoul_only':
-                  // 서울 지역만 필터링
-                  final seoulStations = _displayedStations
-                      .where((station) => 
-                          station.latitude >= 37.4 && 
-                          station.latitude <= 37.7 &&
-                          station.longitude >= 126.7 && 
-                          station.longitude <= 127.3)
-                      .toList();
-                  setState(() {
-                    _displayedStations = seoulStations;
-                  });
-                  await _addSeoulSubwayStationMarkers();
-                  break;
+              try {
+                switch (value) {
+                  case 'refresh':
+                    setState(() {
+                      _isLoading = true;
+                      _errorMessage = null;
+                    });
+                    await _clearStationMarkers();
+                    await _loadVisibleStations();
+                    setState(() {
+                      _isLoading = false;
+                    });
+                    break;
+                  case 'clear':
+                    await _clearStationMarkers();
+                    if (_currentLocationMarker != null &&
+                        _mapController != null) {
+                      await _mapController!.deleteOverlay(
+                        _currentLocationMarker!.info,
+                      );
+                      _currentLocationMarker = null;
+                    }
+                    break;
+                }
+              } catch (e) {
+                print('메뉴 액션 오류: $e');
+                setState(() {
+                  _isLoading = false;
+                  _errorMessage = '작업을 수행하는데 실패했습니다.';
+                });
               }
             },
             itemBuilder: (context) => [
               const PopupMenuItem(
-                value: 'refresh_all',
+                value: 'refresh',
                 child: Row(
                   children: [
                     Icon(Icons.refresh),
                     SizedBox(width: 8),
-                    Text('전체 새로고침'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'seoul_only',
-                child: Row(
-                  children: [
-                    Icon(Icons.location_city),
-                    SizedBox(width: 8),
-                    Text('서울 지역만'),
+                    Text('새로고침'),
                   ],
                 ),
               ),
@@ -632,62 +758,31 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
               activeLayerGroups: [NLayerGroup.building, NLayerGroup.transit],
             ),
             onMapReady: _onMapReady,
+            onCameraChange: _onCameraChange,
+            onCameraIdle: _onCameraIdle,
             onMapTapped: (point, coord) {
-              print('지도 클릭: ${coord.latitude}, ${coord.longitude}');
+              print('🗺️ 지도 클릭: ${coord.latitude}, ${coord.longitude}');
             },
-          ),
-
-          // 내 위치 버튼 (우측 하단)
-          Positioned(
-            right: 16,
-            bottom: 100,
-            child: FloatingActionButton.small(
-              onPressed: _isLoading ? null : _getCurrentLocation,
-              backgroundColor: _isLoading 
-                  ? Colors.green.withOpacity(0.6) 
-                  : Colors.green,
-              foregroundColor: Colors.white,
-              elevation: 4,
-              heroTag: 'location_button',
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Icon(
-                      Icons.my_location,
-                      size: 20,
-                    ),
-            ),
           ),
 
           // 에러 메시지
           if (_errorMessage != null)
             Positioned(
-              top: 100,
+              top: 16,
               left: 16,
               right: 16,
               child: Card(
                 color: Colors.red.withOpacity(0.9),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 8),
+                      const Icon(Icons.error_outline, color: Colors.white),
+                      const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                          ),
+                          style: const TextStyle(color: Colors.white),
                         ),
                       ),
                       IconButton(
@@ -712,68 +807,18 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SpinKitWave(
-                      color: Colors.green,
-                      size: 50.0,
-                    ),
-                    SizedBox(height: 16),
+                    SpinKitWave(color: AppColors.primary, size: 50.0),
+                    SizedBox(height: AppSpacing.md),
                     Text(
-                      '서울 지하철 정보를 불러오고 있습니다...',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                      ),
+                      '지하철 정보를 불러오고 있습니다...',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
                   ],
                 ),
               ),
             ),
-
-          // 역 개수 표시
-          Positioned(
-            top: 100,
-            left: 16,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.train,
-                    color: Colors.green,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '서울 지하철: ${_displayedStations.length}개',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _mapController?.dispose();
-    super.dispose();
   }
 }

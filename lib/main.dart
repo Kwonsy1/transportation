@@ -61,32 +61,6 @@ Future<void> _initializeNaverMap() async {
   }
 }
 
-/// 앱 시작 시 전역 위치 초기화
-Future<void> _initializeLocation(LocationProvider locationProvider) async {
-  try {
-    print('전역 위치 초기화 시작');
-    
-    // 위치 서비스 상태 초기화
-    await locationProvider.initializeLocationStatus();
-    
-    // 위치 권한이 있으면 현재 위치 가져오기
-    if (locationProvider.hasLocationPermission) {
-      await locationProvider.getCurrentLocation();
-      print('전역 위치 초기화 완료: ${locationProvider.currentPosition}');
-      
-      // 주변 역 미리 로드
-      if (locationProvider.currentPosition != null) {
-        await locationProvider.loadNearbyStations();
-        print('주변 역 로드 완료: ${locationProvider.nearbyStations.length}개');
-      }
-    } else {
-      print('위치 권한 없음 - 나중에 요청 할 예정');
-    }
-  } catch (e) {
-    print('전역 위치 초기화 오류: $e');
-  }
-}
-
 class TransportationApp extends StatelessWidget {
   const TransportationApp({super.key});
 
@@ -106,12 +80,7 @@ class TransportationApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) {
-            final locationProvider = LocationProvider();
-            // 앱 시작 시 위치 초기화
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _initializeLocation(locationProvider);
-            });
-            return locationProvider;
+            return LocationProvider();
           },
         ),
         ChangeNotifierProvider(
