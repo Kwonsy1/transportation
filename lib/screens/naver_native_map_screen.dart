@@ -7,6 +7,8 @@ import 'dart:math';
 import '../constants/app_constants.dart';
 import '../providers/location_provider.dart';
 import '../providers/seoul_subway_provider.dart';
+import '../providers/subway_provider.dart';
+import '../models/subway_station.dart';
 import '../models/seoul_subway_station.dart';
 import '../models/station_group.dart';
 import 'multi_line_station_detail_screen.dart';
@@ -550,22 +552,110 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
     );
   }
 
-  /// 역 상세 페이지로 이동
-  void _navigateToStationDetail(SeoulSubwayStation seoulStation) {
-    final station = seoulStation.toSubwayStation();
-    final stationGroup = StationGroup(
-      stationName: station.stationName,
-      stations: [station],
+  /// 역 상세 페이지로 이동 (캐싱 활용 API 연동)
+  Future<void> _navigateToStationDetail(SeoulSubwayStation seoulStation) async {
+    final subwayProvider = context.read<SubwayProvider>();
+
+    // 로딩 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => MultiLineStationDetailScreen(
-          stationGroup: stationGroup,
-          initialStation: station,
-        ),
-      ),
-    );
+    try {
+      // 1. 캐싱을 활용한 API 검색
+      final stationGroup = await subwayProvider.getStationGroupByName(
+        seoulStation.stationName,
+      );
+
+      // 로딩 닫기
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (stationGroup == null) {
+        // 검색 실패 시 기본 데이터로 폴백
+        print('⚠️ API 검색 실패, 기본 데이터 사용: ${seoulStation.stationName}');
+        final fallbackStation = seoulStation.toSubwayStation();
+        final fallbackGroup = StationGroup(
+          stationName: fallbackStation.stationName,
+          stations: [fallbackStation],
+        );
+
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => MultiLineStationDetailScreen(
+                stationGroup: fallbackGroup,
+                initialStation: fallbackStation,
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      // 2. 클릭한 호선과 가장 유사한 역 찾기
+      final clickedLineNumber = seoulStation
+          .toSubwayStation()
+          .effectiveLineNumber;
+      SubwayStation? initialStation;
+
+      // 정확한 호선 매칭 시도
+      initialStation = stationGroup.stations.firstWhere(
+        (station) => station.effectiveLineNumber == clickedLineNumber,
+        orElse: () => stationGroup.stations.first,
+      );
+
+      print(
+        '✅ 지도 연동 성공: ${stationGroup.stationName} (호선 ${stationGroup.stations.length}개, 초기 선택: ${initialStation.effectiveLineNumber})',
+      );
+
+      // 3. 상세 페이지로 이동
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => MultiLineStationDetailScreen(
+              stationGroup: stationGroup,
+              initialStation: initialStation,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      // 로딩 닫기
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      print('❌ 지도 연동 오류: $e');
+
+      // 오류 시 기본 데이터로 폴백
+      final fallbackStation = seoulStation.toSubwayStation();
+      final fallbackGroup = StationGroup(
+        stationName: fallbackStation.stationName,
+        stations: [fallbackStation],
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('역 정보를 불러오는데 시간이 걸립니다. 기본 정보를 표시합니다.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => MultiLineStationDetailScreen(
+              stationGroup: fallbackGroup,
+              initialStation: fallbackStation,
+            ),
+          ),
+        );
+      }
+    }
   }
 
   /// 두 지점 간의 거리 계산 (Haversine 공식)

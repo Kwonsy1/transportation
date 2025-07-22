@@ -464,6 +464,16 @@ class SeoulSubwayProvider extends ChangeNotifier {
     }
   }
 
+  /// 특정 역명의 모든 호선 정보 반환
+  List<SeoulSubwayStation> getStationsByName(String stationName) {
+    final normalizedSearchName = _normalizeStationName(stationName);
+    
+    return _allStations.where((station) {
+      final normalizedStationName = _normalizeStationName(station.stationName);
+      return normalizedStationName == normalizedSearchName;
+    }).toList();
+  }
+
   /// 모든 역을 SubwayStation 리스트로 변환
   List<SubwayStation> getAllSubwayStations() {
     return _allStations.map((station) => station.toSubwayStation()).toList();

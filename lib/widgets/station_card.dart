@@ -22,28 +22,27 @@ class StationCard extends StatelessWidget {
 
   /// 호선별 색상 반환
   Color _getLineColor(String lineNumber) {
-    switch (lineNumber) {
-      case '1':
-        return AppColors.line1;
-      case '2':
-        return AppColors.line2;
-      case '3':
-        return AppColors.line3;
-      case '4':
-        return AppColors.line4;
-      case '5':
-        return AppColors.line5;
-      case '6':
-        return AppColors.line6;
-      case '7':
-        return AppColors.line7;
-      case '8':
-        return AppColors.line8;
-      case '9':
-        return AppColors.line9;
-      default:
-        return AppColors.textSecondary;
-    }
+    final colors = {
+      '1': AppColors.line1,
+      '2': AppColors.line2,
+      '3': AppColors.line3,
+      '4': AppColors.line4,
+      '5': AppColors.line5,
+      '6': AppColors.line6,
+      '7': AppColors.line7,
+      '8': AppColors.line8,
+      '9': AppColors.line9,
+      '경의중앙': const Color(0xFF77C4A3),
+      '분당': const Color(0xFFFFD320),
+      '신분당': const Color(0xFFD31145),
+      '경춘': const Color(0xFF178C72),
+      '수인분당': const Color(0xFFFFD320),
+      '우이신설': const Color(0xFFB7C452),
+      '서해': const Color(0xFF81A914),
+      '김포': const Color(0xFFB69240),
+      '신림': const Color(0xFF6789CA),
+    };
+    return colors[lineNumber] ?? AppColors.textSecondary;
   }
 
   @override
@@ -61,15 +60,18 @@ class StationCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: _getLineColor(station.lineNumber),
+                  color: _getLineColor(station.effectiveLineNumber),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: Text(
-                    station.lineNumber,
+                    station.effectiveLineNumber.length > 3 
+                        ? station.effectiveLineNumber.substring(0, 2) 
+                        : station.effectiveLineNumber,
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      fontSize: station.effectiveLineNumber.length > 2 ? 10 : 14,
                     ),
                   ),
                 ),
@@ -89,7 +91,7 @@ class StationCard extends StatelessWidget {
                     Text(
                       station.subwayRouteName,
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: _getLineColor(station.lineNumber),
+                        color: _getLineColor(station.effectiveLineNumber),
                       ),
                     ),
                     

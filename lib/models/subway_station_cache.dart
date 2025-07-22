@@ -52,7 +52,7 @@ class SubwayStationCache {
       stationId: station.subwayStationId,
       stationName: station.subwayStationName,
       lineName: station.subwayRouteName,
-      lineNumber: station.lineNumber,
+      lineNumber: station.effectiveLineNumber,
       latitude: station.latitude,
       longitude: station.longitude,
       address: null,
@@ -66,6 +66,7 @@ class SubwayStationCache {
       subwayStationId: stationId,
       subwayStationName: stationName,
       subwayRouteName: lineName,
+      lineNumber: lineNumber,
       latitude: latitude,
       longitude: longitude,
     );

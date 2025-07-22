@@ -31,6 +31,12 @@ class SubwayProvider extends ChangeNotifier {
   List<StationGroup> _groupedSearchResults = [];
   List<StationGroup> get groupedSearchResults => _groupedSearchResults;
 
+  // 역명 기반 캐시 (지도 연동용)
+  final Map<String, StationGroup> _stationGroupCache = {};
+  
+  // 캐시 타임스탬프
+  final Map<String, DateTime> _cacheTimestamps = {};
+
   // 검색 모드 (그룹 모드 여부)
   bool _isGroupSearchMode = true;
   bool get isGroupSearchMode => _isGroupSearchMode;
@@ -438,5 +444,93 @@ class SubwayProvider extends ChangeNotifier {
   /// 현재 요일에 따른 요일 코드 반환
   String getCurrentDailyTypeCode() {
     return _apiService.getCurrentDailyTypeCode();
+  }
+
+  /// 지도에서 역명으로 StationGroup 가져오기 (캐싱 활용)
+  Future<StationGroup?> getStationGroupByName(String stationName) async {
+    final cleanName = _cleanStationName(stationName);
+    print('🗺️ 지도에서 역 검색: $stationName -> $cleanName');
+    
+    // 1. 캐시 확인
+    if (_isValidCache(cleanName)) {
+      print('✅ 캐시에서 반환: $cleanName');
+      return _stationGroupCache[cleanName];
+    }
+    
+    // 2. API 검색
+    print('🔍 API 검색 시작: $cleanName');
+    
+    try {
+      final searchResults = await _apiService.searchStations(
+        stationName: cleanName,
+      );
+      
+      if (searchResults.isEmpty) {
+        print('❌ 검색 결과 없음: $cleanName');
+        return null;
+      }
+      
+      // 3. 그룹화
+      final groupedResults = StationGrouper.groupStations(searchResults);
+      final matchingGroup = groupedResults.firstWhere(
+        (group) => _cleanStationName(group.stationName) == cleanName,
+        orElse: () => groupedResults.first,
+      );
+      
+      // 4. 캐시 저장
+      _stationGroupCache[cleanName] = matchingGroup;
+      _cacheTimestamps[cleanName] = DateTime.now();
+      
+      print('✅ API 검색 성공 및 캐싱: $cleanName (호선 ${matchingGroup.stations.length}개)');
+      return matchingGroup;
+      
+    } catch (e) {
+      print('❌ API 검색 실패: $cleanName - $e');
+      return null;
+    }
+  }
+  
+  /// 역명 정규화 (캐싱 키용)
+  String _cleanStationName(String stationName) {
+    return stationName
+        .replaceAll(RegExp(r'역$'), '') // 마지막 "역"만 제거
+        .replaceAll(RegExp(r'\(.*?\)'), '') // 괄호 제거
+        .replaceAll(RegExp(r'\d+호선'), '') // 호선 번호 제거
+        .trim()
+        .toLowerCase();
+  }
+  
+  /// 캐시 유효성 확인 (24시간)
+  bool _isValidCache(String cleanName) {
+    if (!_stationGroupCache.containsKey(cleanName) || 
+        !_cacheTimestamps.containsKey(cleanName)) {
+      return false;
+    }
+    
+    final timestamp = _cacheTimestamps[cleanName]!;
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+    
+    return difference.inHours < 24; // 24시간 유효
+  }
+  
+  /// 캐시 클리어
+  void clearStationGroupCache() {
+    _stationGroupCache.clear();
+    _cacheTimestamps.clear();
+    print('🗑️ 역 그룹 캐시 클리어');
+  }
+  
+  /// 캐시 통계
+  Map<String, int> getCacheStats() {
+    final validCache = _stationGroupCache.keys
+        .where((key) => _isValidCache(key))
+        .length;
+    
+    return {
+      'total': _stationGroupCache.length,
+      'valid': validCache,
+      'expired': _stationGroupCache.length - validCache,
+    };
   }
 }

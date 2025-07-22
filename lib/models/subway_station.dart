@@ -14,6 +14,9 @@ class SubwayStation {
   /// 노선명 (예: 서울 1호선)
   final String subwayRouteName;
 
+  /// 호선 번호 (예: "1", "2", "경의중앙")
+  final String? lineNumber;
+
   /// 위도 (API에서 제공하지 않으므로 옵션)
   final double? latitude;
 
@@ -24,6 +27,7 @@ class SubwayStation {
     required this.subwayStationId,
     required this.subwayStationName,
     required this.subwayRouteName,
+    this.lineNumber,
     this.latitude,
     this.longitude,
   });
@@ -32,11 +36,39 @@ class SubwayStation {
 
   Map<String, dynamic> toJson() => _$SubwayStationToJson(this);
 
-  /// 호선 번호 추출 (노선명에서 추출)
-  String get lineNumber {
-    final regex = RegExp(r'(\d+)호선');
-    final match = regex.firstMatch(subwayRouteName);
-    return match?.group(1) ?? '1';
+  /// 호선 번호 (필드가 있으면 사용, 없으면 노선명에서 추출)
+  String get effectiveLineNumber {
+    if (lineNumber != null && lineNumber!.isNotEmpty) {
+      return lineNumber!;
+    }
+    
+    // 노선명에서 추출
+    final numberRegex = RegExp(r'(\d+)호선');
+    final numberMatch = numberRegex.firstMatch(subwayRouteName);
+    if (numberMatch != null) {
+      return numberMatch.group(1)!;
+    }
+    
+    // 특수 호선 처리
+    final specialLines = {
+      '경의중앙': '경의중앙',
+      '분당': '분당',
+      '신분당': '신분당', 
+      '경춘': '경춘',
+      '수인분당': '수인분당',
+      '우이신설': '우이신설',
+      '서해': '서해',
+      '김포': '김포',
+      '신림': '신림',
+    };
+    
+    for (final entry in specialLines.entries) {
+      if (subwayRouteName.contains(entry.key)) {
+        return entry.value;
+      }
+    }
+    
+    return '1'; // 기본값
   }
 
   /// 단순화된 역명 (역 이름만)

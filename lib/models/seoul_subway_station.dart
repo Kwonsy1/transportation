@@ -53,18 +53,88 @@ class SeoulSubwayStation {
 
   /// 기존 SubwayStation 모델로 변환
   SubwayStation toSubwayStation() {
+    final normalizedLineNumber = _normalizeLineNumber(lineName);
+    final routeName = _formatRouteName(lineName);
+    
     return SubwayStation(
       subwayStationId: stationCode ?? _generateStationId(),
       subwayStationName: stationName,
-      subwayRouteName: '${lineName}호선',
+      subwayRouteName: routeName,
       latitude: latitude,
       longitude: longitude,
+      lineNumber: normalizedLineNumber,
     );
+  }
+  
+  /// 호선 번호 정규화 (02 → 2, 01 → 1)
+  String _normalizeLineNumber(String lineNumber) {
+    // 숫자로 시작하는 호선 처리 (01호선 → 1, 02호선 → 2)
+    final numberMatch = RegExp(r'^0?(\d+)').firstMatch(lineNumber);
+    if (numberMatch != null) {
+      return numberMatch.group(1)!;
+    }
+    
+    // 특수 호선 처리
+    final specialLines = {
+      '경의중앙선': '경의중앙',
+      '분당선': '분당',
+      '신분당선': '신분당',
+      '경춘선': '경춘',
+      '수인분당선': '수인분당',
+      '우이신설선': '우이신설',
+      '서해선': '서해',
+      '김포골드라인': '김포',
+      '신림선': '신림',
+    };
+    
+    for (final entry in specialLines.entries) {
+      if (lineNumber.contains(entry.key)) {
+        return entry.value;
+      }
+    }
+    
+    // 기타 경우 원본 반환 (호선 제거)
+    return lineNumber.replaceAll('호선', '').trim();
+  }
+  
+  /// 호선명 포맷팅
+  String _formatRouteName(String lineNumber) {
+    // 이미 "호선"이 포함되어 있으면 그대로 사용
+    if (lineNumber.contains('호선')) {
+      // 02호선 → 2호선으로 정규화
+      final numberMatch = RegExp(r'^0?(\d+)호선').firstMatch(lineNumber);
+      if (numberMatch != null) {
+        return '${numberMatch.group(1)}호선';
+      }
+      return lineNumber;
+    }
+    
+    // 특수 호선들은 "선"이 이미 포함되어 있음
+    final specialLines = [
+      '경의중앙선', '분당선', '신분당선', '경춘선', 
+      '수인분당선', '우이신설선', '서해선', '김포골드라인', '신림선'
+    ];
+    
+    for (final specialLine in specialLines) {
+      if (lineNumber.contains(specialLine.replaceAll('선', ''))) {
+        return specialLine;
+      }
+    }
+    
+    // 숫자만 있는 경우 "호선" 추가
+    final numberMatch = RegExp(r'^0?(\d+)$').firstMatch(lineNumber);
+    if (numberMatch != null) {
+      return '${numberMatch.group(1)}호선';
+    }
+    
+    // 기타 경우 원본에 "호선" 추가
+    return '${lineNumber}호선';
   }
 
   /// 역명과 호선을 기반으로 고유한 ID 생성
   String _generateStationId() {
-    return 'SEOUL_${stationName.hashCode.abs()}_${lineName.hashCode.abs()}';
+    final normalizedLine = _normalizeLineNumber(lineName);
+    return 'SEOUL_${stationName.hashCode.abs()}_${normalizedLine.hashCode.abs()}';
   }
 
   /// 안전한 double 파싱

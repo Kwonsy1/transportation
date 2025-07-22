@@ -22,11 +22,14 @@ class StationGroup {
       _$StationGroupFromJson(json);
   Map<String, dynamic> toJson() => _$StationGroupToJson(this);
 
-  /// 깨끗한 역명 (번호 제거)
+  /// 깨끗한 역명 (마지막 "역"만 제거)
   String get cleanStationName {
+    // 마지막이 "역"으로 끝나는 경우에만 제거
+    if (stationName.endsWith('역')) {
+      return stationName.substring(0, stationName.length - 1);
+    }
     return stationName
         .replaceAll(RegExp(r'\d+호선'), '')
-        .replaceAll('역', '')
         .trim();
   }
 
@@ -53,7 +56,9 @@ class StationGroup {
   /// 호선 번호로 역 찾기
   SubwayStation? getStationByLineNumber(String lineNumber) {
     try {
-      return stations.firstWhere((station) => station.lineNumber == lineNumber);
+      return stations.firstWhere(
+        (station) => station.effectiveLineNumber == lineNumber,
+      );
     } catch (e) {
       return null;
     }
@@ -64,13 +69,25 @@ class StationGroup {
 
   /// 호선명 텍스트 (UI 표시용)
   String get lineNamesText {
-    final lines = stations.map((station) => station.lineNumber).toSet().toList();
+    final lines = stations
+        .map((station) => station.effectiveLineNumber)
+        .toSet()
+        .toList();
     lines.sort((a, b) {
       final numA = int.tryParse(a) ?? 999;
       final numB = int.tryParse(b) ?? 999;
       return numA.compareTo(numB);
     });
-    return lines.map((line) => '${line}호선').join(', ');
+    return lines
+        .map((line) {
+          // 숫자만 있는 경우 "호선" 추가, 특수 호선은 "선" 추가
+          if (RegExp(r'^\d+$').hasMatch(line)) {
+            return '$line호선';
+          } else {
+            return line.endsWith('선') ? line : '$line선';
+          }
+        })
+        .join(', ');
   }
 
   /// 호선 개수
@@ -125,7 +142,7 @@ class StationGrouper {
   /// 역명에서 불필요한 부분 제거
   static String _getCleanStationName(String stationName) {
     return stationName
-        .replaceAll('역', '')
+        .replaceAll(RegExp(r'역$'), '') // 마지막 "역"만 제거
         .replaceAll(RegExp(r'\(\w+\)'), '') // 괄호 안 내용 제거
         .trim();
   }

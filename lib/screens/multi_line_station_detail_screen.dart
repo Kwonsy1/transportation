@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../constants/app_constants.dart';
 import '../constants/api_constants.dart';
 import '../models/subway_station.dart';
 import '../models/station_group.dart';
@@ -15,23 +13,26 @@ class MultiLineStationDetailScreen extends StatefulWidget {
   final SubwayStation? initialStation;
 
   const MultiLineStationDetailScreen({
-    super.key, 
+    super.key,
     required this.stationGroup,
     this.initialStation,
   });
 
   @override
-  State<MultiLineStationDetailScreen> createState() => _MultiLineStationDetailScreenState();
+  State<MultiLineStationDetailScreen> createState() =>
+      _MultiLineStationDetailScreenState();
 }
 
-class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScreen> {
+class _MultiLineStationDetailScreenState
+    extends State<MultiLineStationDetailScreen> {
   late SubwayStation _selectedStation;
 
   @override
   void initState() {
     super.initState();
-    _selectedStation = widget.initialStation ?? widget.stationGroup.stations.first;
-    
+    _selectedStation =
+        widget.initialStation ?? widget.stationGroup.stations.first;
+
     // 선택된 역의 데이터 로드
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadStationData();
@@ -85,6 +86,15 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
       '7': const Color(0xFF747f00),
       '8': const Color(0xFFe6186c),
       '9': const Color(0xFFbdb092),
+      '경의중앙': const Color(0xFF77C4A3),
+      '분당': const Color(0xFFFFD320),
+      '신분당': const Color(0xFFD31145),
+      '경춘': const Color(0xFF178C72),
+      '수인분당': const Color(0xFFFFD320),
+      '우이신설': const Color(0xFFB7C452),
+      '서해': const Color(0xFF81A914),
+      '김포': const Color(0xFFB69240),
+      '신림': const Color(0xFF6789CA),
     };
     return colors[lineNumber] ?? const Color(0xFF757575);
   }
@@ -94,7 +104,7 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
     if (timeString.length < 4) {
       return timeString; // 너무 짧으면 그대로 반환
     }
-    
+
     try {
       if (timeString.length >= 6) {
         // HHMMSS 형식
@@ -173,7 +183,7 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
 
               // 출구 정보
               _buildExitInfo(),
-              
+
               // 하단 여백 추가
               const SizedBox(height: 50),
             ],
@@ -191,7 +201,7 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: _getLineColor(_selectedStation.lineNumber),
+            color: _getLineColor(_selectedStation.effectiveLineNumber),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -201,16 +211,20 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
                 width: 16,
                 height: 16,
                 decoration: BoxDecoration(
-                  color: _getLineColor(_selectedStation.lineNumber),
+                  color: _getLineColor(_selectedStation.effectiveLineNumber),
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),
                 child: Center(
                   child: Text(
-                    _selectedStation.lineNumber,
-                    style: const TextStyle(
+                    _selectedStation.effectiveLineNumber.length > 3
+                        ? _selectedStation.effectiveLineNumber.substring(0, 2)
+                        : _selectedStation.effectiveLineNumber,
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
+                      fontSize: _selectedStation.effectiveLineNumber.length > 2
+                          ? 8
+                          : 10,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -269,11 +283,7 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.info_outline,
-                color: Colors.blue,
-                size: 20,
-              ),
+              const Icon(Icons.info_outline, color: Colors.blue, size: 20),
               const SizedBox(width: 8),
               Text(
                 '호선을 선택해주세요',
@@ -286,15 +296,17 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
             ],
           ),
           const SizedBox(height: 12),
-          
+
           // 호선 탭들
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: widget.stationGroup.stations.map((station) {
-              final isSelected = _selectedStation.subwayStationId == station.subwayStationId;
-              final lineColor = _getLineColor(station.lineNumber);
-              
+              final isSelected =
+                  _selectedStation.subwayStationId == station.subwayStationId;
+              final lineNumber = station.effectiveLineNumber;
+              final lineColor = _getLineColor(lineNumber);
+
               return GestureDetector(
                 onTap: () => _onLineSelected(station),
                 child: Container(
@@ -305,17 +317,16 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
                   decoration: BoxDecoration(
                     color: isSelected ? lineColor : Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: lineColor,
-                      width: 2,
-                    ),
-                    boxShadow: isSelected ? [
-                      BoxShadow(
-                        color: lineColor.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ] : null,
+                    border: Border.all(color: lineColor, width: 2),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: lineColor.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -329,10 +340,12 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
                         ),
                         child: Center(
                           child: Text(
-                            station.lineNumber,
+                            lineNumber.length > 3
+                                ? lineNumber.substring(0, 2)
+                                : lineNumber,
                             style: TextStyle(
                               color: isSelected ? lineColor : Colors.white,
-                              fontSize: 12,
+                              fontSize: lineNumber.length > 2 ? 8 : 12,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -366,18 +379,28 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
         // 즐겨찾기 버튼
         Consumer<SubwayProvider>(
           builder: (context, provider, child) {
-            final isFavorite = provider.isFavoriteStationGroup(widget.stationGroup);
+            final isFavorite = provider.isFavoriteStationGroup(
+              widget.stationGroup,
+            );
             return OutlinedButton.icon(
               onPressed: () {
                 if (isFavorite) {
                   provider.removeFavoriteStationGroup(widget.stationGroup);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${widget.stationGroup.cleanStationName}역을 즐겨찾기에서 제거했습니다')),
+                    SnackBar(
+                      content: Text(
+                        '${widget.stationGroup.cleanStationName}역을 즐겨찾기에서 제거했습니다',
+                      ),
+                    ),
                   );
                 } else {
                   provider.addFavoriteStationGroup(widget.stationGroup);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${widget.stationGroup.cleanStationName}역을 즐겨찾기에 추가했습니다')),
+                    SnackBar(
+                      content: Text(
+                        '${widget.stationGroup.cleanStationName}역을 즐겨찾기에 추가했습니다',
+                      ),
+                    ),
                   );
                 }
               },
@@ -408,9 +431,9 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
         // 공유 버튼
         OutlinedButton.icon(
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('공유 기능은 추후 구현됩니다')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('공유 기능은 추후 구현됩니다')));
           },
           icon: const Icon(Icons.share, color: Colors.grey),
           label: const Text('공유', style: TextStyle(color: Colors.grey)),
@@ -558,8 +581,8 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        nextTrains[0].formattedTimeUntilArrival.isEmpty 
-                            ? nextTrains[0].arrivalStatusMessage 
+                        nextTrains[0].formattedTimeUntilArrival.isEmpty
+                            ? nextTrains[0].arrivalStatusMessage
                             : nextTrains[0].formattedTimeUntilArrival,
                         style: const TextStyle(
                           fontSize: 18,
@@ -585,8 +608,8 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          nextTrains[1].formattedTimeUntilArrival.isEmpty 
-                              ? nextTrains[1].arrivalStatusMessage 
+                          nextTrains[1].formattedTimeUntilArrival.isEmpty
+                              ? nextTrains[1].arrivalStatusMessage
                               : nextTrains[1].formattedTimeUntilArrival,
                           style: const TextStyle(
                             fontSize: 16,
@@ -655,9 +678,7 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
               )
             else
               Container(
-                constraints: const BoxConstraints(
-                  maxHeight: 300,
-                ),
+                constraints: const BoxConstraints(maxHeight: 300),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey[300]!),
                   borderRadius: BorderRadius.circular(12),
@@ -668,20 +689,23 @@ class _MultiLineStationDetailScreenState extends State<MultiLineStationDetailScr
                   itemCount: upcomingSchedules.take(6).length,
                   itemBuilder: (context, index) {
                     final schedule = upcomingSchedules.elementAt(index);
-                    final isLast = index == upcomingSchedules.take(6).length - 1;
-                    
+                    final isLast =
+                        index == upcomingSchedules.take(6).length - 1;
+
                     return Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 12,
                       ),
                       decoration: BoxDecoration(
-                        border: isLast ? null : Border(
-                          bottom: BorderSide(
-                            color: Colors.grey[200]!,
-                            width: 0.5,
-                          ),
-                        ),
+                        border: isLast
+                            ? null
+                            : Border(
+                                bottom: BorderSide(
+                                  color: Colors.grey[200]!,
+                                  width: 0.5,
+                                ),
+                              ),
                       ),
                       child: Row(
                         children: [
