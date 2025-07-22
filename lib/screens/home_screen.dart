@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../constants/app_constants.dart';
 import '../providers/location_provider.dart';
 import 'station_search_screen.dart';
 import 'favorites_screen.dart';
 import 'naver_native_map_screen.dart'; // 네이버 네이티브 맵 사용
-import 'google_map_screen.dart'; // OpenStreetMap 사용 (대체용)
 import 'seoul_subway_test_screen.dart'; // 서울 지하철 API 테스트
 
 /// 메인 홈 화면 (하단 네비게이션 포함)
@@ -38,10 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
@@ -51,18 +46,9 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map),
-            label: '지도',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: '역검색',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            label: '즐겨찾기',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: '지도'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: '역검색'),
+          BottomNavigationBarItem(icon: Icon(Icons.favorite), label: '즐겨찾기'),
           BottomNavigationBarItem(
             icon: Icon(Icons.developer_mode),
             label: 'API테스트',

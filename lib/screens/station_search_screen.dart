@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../constants/app_constants.dart';
 import '../providers/subway_provider.dart';
-import '../models/subway_station.dart';
 import '../models/station_group.dart';
 import '../widgets/station_group_card.dart';
 import 'multi_line_station_detail_screen.dart';
@@ -38,14 +37,13 @@ class _StationSearchScreenState extends State<StationSearchScreen> {
   void _onStationGroupTap(StationGroup stationGroup) {
     // 키보드 숨기기
     _searchFocusNode.unfocus();
-    
+
     // 항상 통합 상세 화면으로 이동
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => MultiLineStationDetailScreen(
-          stationGroup: stationGroup,
-        ),
+        builder: (context) =>
+            MultiLineStationDetailScreen(stationGroup: stationGroup),
       ),
     );
   }
@@ -53,9 +51,7 @@ class _StationSearchScreenState extends State<StationSearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('지하철 역 검색'),
-      ),
+      appBar: AppBar(title: const Text('지하철 역 검색')),
       body: Column(
         children: [
           // 검색 바
@@ -81,7 +77,7 @@ class _StationSearchScreenState extends State<StationSearchScreen> {
               onSubmitted: _performSearch,
             ),
           ),
-          
+
           // 검색 결과
           Expanded(
             child: Consumer<SubwayProvider>(
@@ -89,10 +85,7 @@ class _StationSearchScreenState extends State<StationSearchScreen> {
                 // 로딩 상태
                 if (provider.isLoadingSearch) {
                   return const Center(
-                    child: SpinKitWave(
-                      color: AppColors.primary,
-                      size: 50.0,
-                    ),
+                    child: SpinKitWave(color: AppColors.primary, size: 50.0),
                   );
                 }
 
@@ -137,8 +130,8 @@ class _StationSearchScreenState extends State<StationSearchScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          _searchController.text.isEmpty 
-                              ? Icons.search_off 
+                          _searchController.text.isEmpty
+                              ? Icons.search_off
                               : Icons.train_outlined,
                           size: 64,
                           color: AppColors.textSecondary,
