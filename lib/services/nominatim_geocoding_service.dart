@@ -1,15 +1,12 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
 import '../models/subway_station.dart';
-import 'http_service.dart';
 import '../utils/ksy_log.dart';
 
 /// OpenStreetMap Nominatim API를 사용한 좌표 검색 서비스
 ///
 /// API 제한사항: 3초에 1번만 요청 가능
 class NominatimGeocodingService {
-  final HttpService _httpService = HttpService.instance;
-
   // API 기본 설정
   static const String _baseUrl = 'https://nominatim.openstreetmap.org';
   static const String _searchEndpoint = '/search';

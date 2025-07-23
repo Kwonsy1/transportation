@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_constants.dart';
 import '../providers/subway_provider.dart';
-import '../models/subway_station.dart';
 import '../widgets/station_group_card.dart';
 import '../models/station_group.dart';
 import 'multi_line_station_detail_screen.dart';
@@ -15,9 +14,8 @@ class FavoritesScreen extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => MultiLineStationDetailScreen(
-          stationGroup: stationGroup,
-        ),
+        builder: (context) =>
+            MultiLineStationDetailScreen(stationGroup: stationGroup),
       ),
     );
   }
@@ -44,15 +42,14 @@ class FavoritesScreen extends StatelessWidget {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('${stationGroup.cleanStationName}역을 즐겨찾기에서 제거했습니다'),
+                    content: Text(
+                      '${stationGroup.cleanStationName}역을 즐겨찾기에서 제거했습니다',
+                    ),
                     duration: const Duration(seconds: 2),
                   ),
                 );
               },
-              child: const Text(
-                '제거',
-                style: TextStyle(color: AppColors.error),
-              ),
+              child: const Text('제거', style: TextStyle(color: AppColors.error)),
             ),
           ],
         );
@@ -67,8 +64,8 @@ class FavoritesScreen extends StatelessWidget {
         title: const Text('즐겨찾기'),
         actions: [
           Consumer<SubwayProvider>(
-          builder: (context, provider, child) {
-          if (provider.favoriteStationGroups.isNotEmpty) {
+            builder: (context, provider, child) {
+              if (provider.favoriteStationGroups.isNotEmpty) {
                 return PopupMenuButton<String>(
                   onSelected: (value) {
                     if (value == 'clear_all') {
@@ -108,10 +105,7 @@ class FavoritesScreen extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  const Text(
-                    '즐겨찾기한 역이 없습니다',
-                    style: AppTextStyles.heading3,
-                  ),
+                  const Text('즐겨찾기한 역이 없습니다', style: AppTextStyles.heading3),
                   const SizedBox(height: AppSpacing.sm),
                   const Text(
                     '자주 이용하는 지하철역을 즐겨찾기에 추가해보세요',
@@ -156,7 +150,7 @@ class FavoritesScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              
+
               // 즐겨찾기 역 그룹 목록
               Expanded(
                 child: ListView.builder(
@@ -174,16 +168,14 @@ class FavoritesScreen extends StatelessWidget {
                           padding: const EdgeInsets.only(right: AppSpacing.lg),
                           decoration: BoxDecoration(
                             color: AppColors.error,
-                            borderRadius: BorderRadius.circular(AppRadius.medium),
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.medium,
+                            ),
                           ),
                           child: const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                Icons.delete,
-                                color: Colors.white,
-                                size: 24,
-                              ),
+                              Icon(Icons.delete, color: Colors.white, size: 24),
                               SizedBox(height: AppSpacing.xs),
                               Text(
                                 '제거',
@@ -202,14 +194,18 @@ class FavoritesScreen extends StatelessWidget {
                             builder: (BuildContext context) {
                               return AlertDialog(
                                 title: const Text('즐겨찾기 제거'),
-                                content: Text('${stationGroup.cleanStationName}역을 즐겨찾기에서 제거하시겠습니까?'),
+                                content: Text(
+                                  '${stationGroup.cleanStationName}역을 즐겨찾기에서 제거하시겠습니까?',
+                                ),
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
                                     child: const Text('취소'),
                                   ),
                                   TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
                                     child: const Text(
                                       '제거',
                                       style: TextStyle(color: AppColors.error),
@@ -221,26 +217,38 @@ class FavoritesScreen extends StatelessWidget {
                           );
                         },
                         onDismissed: (direction) async {
-                          await provider.removeFavoriteStationGroup(stationGroup);
+                          await provider.removeFavoriteStationGroup(
+                            stationGroup,
+                          );
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('${stationGroup.cleanStationName}역을 즐겨찾기에서 제거했습니다'),
+                              content: Text(
+                                '${stationGroup.cleanStationName}역을 즐겨찾기에서 제거했습니다',
+                              ),
                               duration: const Duration(seconds: 2),
                               action: SnackBarAction(
                                 label: '취소',
                                 onPressed: () async {
-                                  await provider.addFavoriteStationGroup(stationGroup);
+                                  await provider.addFavoriteStationGroup(
+                                    stationGroup,
+                                  );
                                 },
                               ),
                             ),
                           );
                         },
                         child: InkWell(
-                          onTap: () => _onStationGroupTap(context, stationGroup),
-                          onLongPress: () => _showRemoveConfirmDialog(context, stationGroup, provider),
+                          onTap: () =>
+                              _onStationGroupTap(context, stationGroup),
+                          onLongPress: () => _showRemoveConfirmDialog(
+                            context,
+                            stationGroup,
+                            provider,
+                          ),
                           child: StationGroupCard(
                             stationGroup: stationGroup,
-                            onTap: () => _onStationGroupTap(context, stationGroup),
+                            onTap: () =>
+                                _onStationGroupTap(context, stationGroup),
                             showFavoriteButton: false,
                           ),
                         ),
@@ -256,7 +264,10 @@ class FavoritesScreen extends StatelessWidget {
     );
   }
 
-  void _showClearAllConfirmDialog(BuildContext context, SubwayProvider provider) {
+  void _showClearAllConfirmDialog(
+    BuildContext context,
+    SubwayProvider provider,
+  ) {
     showDialog(
       context: context,
       builder: (BuildContext context) {

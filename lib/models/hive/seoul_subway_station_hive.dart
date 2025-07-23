@@ -1,7 +1,6 @@
 import 'package:hive/hive.dart';
 import '../subway_station.dart';
 import '../seoul_subway_station.dart';
-import '../../services/seoul_subway_api_service.dart';
 
 part 'seoul_subway_station_hive.g.dart';
 
@@ -11,23 +10,23 @@ class SeoulSubwayStationHive extends HiveObject {
   /// 역명
   @HiveField(0)
   final String stationName;
-  
+
   /// 호선명
   @HiveField(1)
   final String lineName;
-  
+
   /// 위도
   @HiveField(2)
   final double latitude;
-  
+
   /// 경도
   @HiveField(3)
   final double longitude;
-  
+
   /// 역코드 (옵션)
   @HiveField(4)
   final String? stationCode;
-  
+
   /// 지하철구분명 (옵션)
   @HiveField(5)
   final String? subwayTypeName;
@@ -57,11 +56,8 @@ class SeoulSubwayStationHive extends HiveObject {
     DateTime? lastUpdated,
   }) {
     final now = lastUpdated ?? DateTime.now();
-    final hasValidCoords = station.latitude != 0.0 && 
-                          station.longitude != 0.0 &&
-                          station.latitude != null && 
-                          station.longitude != null;
-    
+    final hasValidCoords = station.latitude != 0.0 && station.longitude != 0.0;
+
     return SeoulSubwayStationHive(
       stationName: station.stationName,
       lineName: station.lineName,
@@ -91,7 +87,7 @@ class SeoulSubwayStationHive extends HiveObject {
     return SubwayStation(
       subwayStationId: stationCode ?? _generateStationId(),
       subwayStationName: stationName,
-      subwayRouteName: '${lineName}호선',
+      subwayRouteName: '$lineName호선',
       latitude: latitude,
       longitude: longitude,
     );
@@ -103,7 +99,10 @@ class SeoulSubwayStationHive extends HiveObject {
   }
 
   /// 좌표 업데이트
-  SeoulSubwayStationHive updateCoordinates(double newLatitude, double newLongitude) {
+  SeoulSubwayStationHive updateCoordinates(
+    double newLatitude,
+    double newLongitude,
+  ) {
     return SeoulSubwayStationHive(
       stationName: stationName,
       lineName: lineName,
@@ -117,10 +116,10 @@ class SeoulSubwayStationHive extends HiveObject {
   }
 
   /// 좌표가 유효한지 확인
-  bool get isCoordinateValid => 
-      latitude != 0.0 && 
-      longitude != 0.0 && 
-      latitude.abs() <= 90 && 
+  bool get isCoordinateValid =>
+      latitude != 0.0 &&
+      longitude != 0.0 &&
+      latitude.abs() <= 90 &&
       longitude.abs() <= 180;
 
   /// 좌표가 비어있는지 확인
@@ -129,12 +128,12 @@ class SeoulSubwayStationHive extends HiveObject {
   @override
   String toString() {
     return 'SeoulSubwayStationHive('
-           'stationName: $stationName, '
-           'lineName: $lineName, '
-           'lat: $latitude, '
-           'lng: $longitude, '
-           'hasValidCoords: $hasValidCoordinates'
-           ')';
+        'stationName: $stationName, '
+        'lineName: $lineName, '
+        'lat: $latitude, '
+        'lng: $longitude, '
+        'hasValidCoords: $hasValidCoordinates'
+        ')';
   }
 
   @override

@@ -1,9 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'dart:convert';
 import 'dart:math' as math;
 import '../models/subway_station.dart';
 import '../models/seoul_subway_station.dart';
-import '../models/hive/seoul_subway_station_hive.dart';
 import '../services/seoul_subway_api_service.dart';
 import '../services/nominatim_geocoding_service.dart';
 export '../services/nominatim_geocoding_service.dart' show NominatimLocation;
@@ -368,7 +366,9 @@ class SeoulSubwayProvider extends ChangeNotifier {
             )
             .toList();
 
-        KSYLog.info('🔒 좌표 보존 모드: ${stationsWithCoordinates.length}개 역의 좌표 데이터 백업');
+        KSYLog.info(
+          '🔒 좌표 보존 모드: ${stationsWithCoordinates.length}개 역의 좌표 데이터 백업',
+        );
 
         // 전체 데이터 삭제
         await _hiveService.clearAllData();
@@ -468,7 +468,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
   /// 특정 역명의 모든 호선 정보 반환
   List<SeoulSubwayStation> getStationsByName(String stationName) {
     final normalizedSearchName = _normalizeStationName(stationName);
-    
+
     return _allStations.where((station) {
       final normalizedStationName = _normalizeStationName(station.stationName);
       return normalizedStationName == normalizedSearchName;

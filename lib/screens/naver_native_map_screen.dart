@@ -31,7 +31,6 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
 
   // 현재 지도 상태
   NCameraPosition? _currentCameraPosition;
-  List<SeoulSubwayStation> _visibleStations = [];
 
   // 디바운스 타이머
   Timer? _debounceTimer;
@@ -78,7 +77,9 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       while (seoulSubwayProvider.isLoading) {
         await Future.delayed(const Duration(milliseconds: 100));
       }
-      KSYLog.info('🚇 SeoulSubwayProvider 로딩 완료: ${seoulSubwayProvider.hasStations}');
+      KSYLog.info(
+        '🚇 SeoulSubwayProvider 로딩 완료: ${seoulSubwayProvider.hasStations}',
+      );
     }
   }
 
@@ -143,7 +144,9 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       final center = cameraPosition.target;
       final zoomLevel = cameraPosition.zoom;
 
-      KSYLog.debug('📍 지도 중심: ${center.latitude}, ${center.longitude}, 줌: $zoomLevel');
+      KSYLog.debug(
+        '📍 지도 중심: ${center.latitude}, ${center.longitude}, 줌: $zoomLevel',
+      );
 
       // LocationProvider 업데이트
       final locationProvider = context.read<LocationProvider>();
@@ -160,10 +163,6 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
         KSYLog.debug('🚇 표시할 역이 없음');
         return;
       }
-
-      setState(() {
-        _visibleStations = stations;
-      });
 
       // 마커 업데이트
       await _updateStationMarkers(stations);

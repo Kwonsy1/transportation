@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import '../models/subway_station.dart';
 import '../models/subway_schedule.dart';
 import '../models/next_train_info.dart';
-import '../models/api_response.dart';
 import '../models/station_group.dart';
 import '../services/subway_api_service.dart';
 import '../services/favorites_storage_service.dart';
@@ -34,7 +33,7 @@ class SubwayProvider extends ChangeNotifier {
 
   // 역명 기반 캐시 (지도 연동용)
   final Map<String, StationGroup> _stationGroupCache = {};
-  
+
   // 캐시 타임스탬프
   final Map<String, DateTime> _cacheTimestamps = {};
 
@@ -150,17 +149,17 @@ class SubwayProvider extends ChangeNotifier {
 
       _exitBusRoutes = futures[0] as List<SubwayExitBusRoute>;
       _exitFacilities = futures[1] as List<SubwayExitFacility>;
-      
+
       KSYLog.debug('Provider 로드 결과:');
       KSYLog.debug('exitBusRoutes 개수: ${_exitBusRoutes.length}');
       KSYLog.debug('exitFacilities 개수: ${_exitFacilities.length}');
       KSYLog.object('exitBusRoutes 데이터', _exitBusRoutes);
       KSYLog.object('exitFacilities 데이터', _exitFacilities);
-      
+
       // 데이터가 비어있거나 부족하면 테스트 데이터 추가
       if (_exitBusRoutes.length < 2 || _exitFacilities.length < 2) {
         KSYLog.warning('출구 정보가 부족해서 테스트 데이터를 추가합니다.');
-        
+
         // 기존 데이터에 테스트 데이터 추가
         _exitBusRoutes.addAll([
           SubwayExitBusRoute(
@@ -182,7 +181,7 @@ class SubwayProvider extends ChangeNotifier {
             endSttnNm: '종점정류장',
           ),
         ]);
-        
+
         _exitFacilities.addAll([
           SubwayExitFacility(
             subwayStationId: _selectedStation!.subwayStationId,
@@ -252,7 +251,7 @@ class SubwayProvider extends ChangeNotifier {
   /// 검색 모드 전환
   void toggleSearchMode() {
     _isGroupSearchMode = !_isGroupSearchMode;
-    
+
     // 현재 검색 결과가 있으면 다시 그룹화
     if (_searchResults.isNotEmpty) {
       if (_isGroupSearchMode) {
@@ -261,7 +260,7 @@ class SubwayProvider extends ChangeNotifier {
         _groupedSearchResults = [];
       }
     }
-    
+
     notifyListeners();
   }
 
@@ -307,9 +306,7 @@ class SubwayProvider extends ChangeNotifier {
   /// 특정 역명이 즐겨찾기에 있는지 확인 (역명으로 검사)
   bool isFavoriteStationByName(String stationName) {
     final cleanName = stationName.replaceAll('역', '').trim();
-    return _favoriteStationGroups.any(
-      (g) => g.cleanStationName == cleanName,
-    );
+    return _favoriteStationGroups.any((g) => g.cleanStationName == cleanName);
   }
 
   /// 기존 즐겨찾기 추가 (개별 호선 - 하위 호환성)
@@ -420,7 +417,9 @@ class SubwayProvider extends ChangeNotifier {
   /// 로컬 저장소에 즐겨찾기 저장
   Future<void> _saveFavoritesToLocal() async {
     try {
-      await FavoritesStorageService.saveFavoriteStationGroups(_favoriteStationGroups);
+      await FavoritesStorageService.saveFavoriteStationGroups(
+        _favoriteStationGroups,
+      );
       KSYLog.debug('즐겨찾기 그룹 저장: ${_favoriteStationGroups.length}개');
     } catch (e) {
       KSYLog.error('즐겨찾기 저장 오류', e);
@@ -431,7 +430,8 @@ class SubwayProvider extends ChangeNotifier {
   /// 로컬 저장소에서 즐겨찾기 로드
   Future<void> loadFavoritesFromLocal() async {
     try {
-      final loadedFavorites = await FavoritesStorageService.loadFavoriteStationGroups();
+      final loadedFavorites =
+          await FavoritesStorageService.loadFavoriteStationGroups();
       _favoriteStationGroups.clear();
       _favoriteStationGroups.addAll(loadedFavorites);
       notifyListeners();
@@ -451,46 +451,47 @@ class SubwayProvider extends ChangeNotifier {
   Future<StationGroup?> getStationGroupByName(String stationName) async {
     final cleanName = _cleanStationName(stationName);
     KSYLog.debug('🗺️ 지도에서 역 검색: $stationName -> $cleanName');
-    
+
     // 1. 캐시 확인
     if (_isValidCache(cleanName)) {
       KSYLog.cache('get', cleanName, true);
       return _stationGroupCache[cleanName];
     }
-    
+
     // 2. API 검색
     KSYLog.debug('🔍 API 검색 시작: $cleanName');
-    
+
     try {
       final searchResults = await _apiService.searchStations(
         stationName: cleanName,
       );
-      
+
       if (searchResults.isEmpty) {
         KSYLog.warning('❌ 검색 결과 없음: $cleanName');
         return null;
       }
-      
+
       // 3. 그룹화
       final groupedResults = StationGrouper.groupStations(searchResults);
       final matchingGroup = groupedResults.firstWhere(
         (group) => _cleanStationName(group.stationName) == cleanName,
         orElse: () => groupedResults.first,
       );
-      
+
       // 4. 캐시 저장
       _stationGroupCache[cleanName] = matchingGroup;
       _cacheTimestamps[cleanName] = DateTime.now();
-      
-      KSYLog.info('✅ API 검색 성공 및 캐싱: $cleanName (호선 ${matchingGroup.stations.length}개)');
+
+      KSYLog.info(
+        '✅ API 검색 성공 및 캐싱: $cleanName (호선 ${matchingGroup.stations.length}개)',
+      );
       return matchingGroup;
-      
     } catch (e) {
       KSYLog.error('❌ API 검색 실패: $cleanName', e);
       return null;
     }
   }
-  
+
   /// 역명 정규화 (캐싱 키용)
   String _cleanStationName(String stationName) {
     return stationName
@@ -500,34 +501,34 @@ class SubwayProvider extends ChangeNotifier {
         .trim()
         .toLowerCase();
   }
-  
+
   /// 캐시 유효성 확인 (24시간)
   bool _isValidCache(String cleanName) {
-    if (!_stationGroupCache.containsKey(cleanName) || 
+    if (!_stationGroupCache.containsKey(cleanName) ||
         !_cacheTimestamps.containsKey(cleanName)) {
       return false;
     }
-    
+
     final timestamp = _cacheTimestamps[cleanName]!;
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    
+
     return difference.inHours < 24; // 24시간 유효
   }
-  
+
   /// 캐시 클리어
   void clearStationGroupCache() {
     _stationGroupCache.clear();
     _cacheTimestamps.clear();
     KSYLog.cache('clear', 'stationGroupCache', null);
   }
-  
+
   /// 캐시 통계
   Map<String, int> getCacheStats() {
     final validCache = _stationGroupCache.keys
         .where((key) => _isValidCache(key))
         .length;
-    
+
     return {
       'total': _stationGroupCache.length,
       'valid': validCache,
