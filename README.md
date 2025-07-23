@@ -76,8 +76,8 @@ class ApiConstants {
   static const String subwayApiKey = 'YOUR_SUBWAY_API_KEY_HERE'; // 👈 실제 API 키로 교체
   
   // 네이버 지도 API
-  static const String naverMapClientId = 'jpj5i2bvdl'; // 👈 실제 클라이언트 ID로 교체 완료
-  static const String naverMapClientSecret = 'N4mEolnK5KGBQvcQDWqFzofQsp82uk7hLP36uZPQ'; // 👈 실제 클라이언트 시크릿으로 교체 완료
+  static const String naverMapClientId = 'YOUR_API_KEY_HERE'; // 👈 실제 클라이언트 ID로 교체 완료
+  static const String naverMapClientSecret = 'YOUR_API_KEY_HERE'; // 👈 실제 클라이언트 시크릿으로 교체 완료
 }
 ```
 

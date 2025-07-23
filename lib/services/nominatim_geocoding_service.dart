@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'dart:async';
 import 'package:dio/dio.dart';
 import '../models/subway_station.dart';
 import 'http_service.dart';
+import '../utils/ksy_log.dart';
 
 /// OpenStreetMap Nominatim API를 사용한 좌표 검색 서비스
 ///
@@ -64,7 +64,9 @@ class NominatimGeocodingService {
   }) async {
     final updatedStations = <SubwayStation>[];
 
-    print('🚀 좌표 업데이트 시작: 총 ${stations.length}개 역, 강제 업데이트: $forceUpdate');
+    KSYLog.info(
+      '🚀 좌표 업데이트 시작: 총 ${stations.length}개 역, 강제 업데이트: $forceUpdate',
+    );
 
     for (int i = 0; i < stations.length; i++) {
       final station = stations[i];
@@ -77,14 +79,14 @@ class NominatimGeocodingService {
           station.longitude != 0.0) {
         updatedStations.add(station);
         onProgress?.call(i + 1, stations.length);
-        print(
+        KSYLog.debug(
           '⏭️ ${station.subwayStationName}: 유효한 좌표 이미 존재 (${station.latitude}, ${station.longitude}), 건너뛰기',
         );
         continue;
       }
 
       try {
-        print('🔍 ${station.subwayStationName} 좌표 검색 시작...');
+        KSYLog.debug('🔍 ${station.subwayStationName} 좌표 검색 시작...');
 
         // 역명으로 좌표 검색
         final locations = await searchStationCoordinates(
@@ -111,22 +113,22 @@ class NominatimGeocodingService {
           updatedStations.add(updatedStation);
           onStationUpdated?.call(updatedStation);
 
-          print(
+          KSYLog.debug(
             '✅ ${station.subwayStationName}: ${bestLocation.latitude}, ${bestLocation.longitude}',
           );
         } else {
           // 좌표를 찾지 못한 경우 원본 유지
           updatedStations.add(station);
-          print('❌ ${station.subwayStationName}: 좌표를 찾을 수 없음');
+          KSYLog.debug('❌ ${station.subwayStationName}: 좌표를 찾을 수 없음');
         }
       } catch (e) {
-        print('🚨 ${station.subwayStationName}: 검색 오류 - $e');
+        KSYLog.error('🚨 ${station.subwayStationName}: 검색 오류 - $e');
 
         // 타임아웃이나 네트워크 오류 시 추가 대기
         if (e.toString().contains('timeout') ||
             e.toString().contains('SocketException') ||
             e.toString().contains('Connection refused')) {
-          print('⏰ 네트워크 오류로 인한 5초 추가 대기...');
+          KSYLog.debug('⏰ 네트워크 오류로 인한 5초 추가 대기...');
           await Future.delayed(Duration(seconds: 5));
         }
 
@@ -138,7 +140,7 @@ class NominatimGeocodingService {
       onProgress?.call(i + 1, stations.length);
     }
 
-    print('🏁 좌표 업데이트 완료: 총 ${updatedStations.length}개 역 처리 완료');
+    KSYLog.info('🏁 좌표 업데이트 완료: 총 ${updatedStations.length}개 역 처리 완료');
     return updatedStations;
   }
 
@@ -159,7 +161,7 @@ class NominatimGeocodingService {
         final results = await _executeGeocodingRequest(request);
         request.completer.complete(results);
       } catch (e) {
-        print('🚨 큐 처리 오류: $e');
+        KSYLog.error('🚨 큐 처리 오류: $e');
         request.completer.completeError(e);
       }
     }
@@ -173,14 +175,14 @@ class NominatimGeocodingService {
       final elapsed = DateTime.now().difference(_lastRequestTime!);
       if (elapsed < _requestDelay) {
         final waitTime = _requestDelay - elapsed;
-        print(
+        KSYLog.debug(
           '⏰ API 요청 제한으로 ${waitTime.inSeconds}초 대기... (남은 큐: ${_requestQueue.length}개)',
         );
         await Future.delayed(waitTime);
       }
     }
     _lastRequestTime = DateTime.now();
-    print('🚀 API 요청 실행 시작');
+    KSYLog.debug('🚀 API 요청 실행 시작');
   }
 
   /// 실제 Geocoding API 요청 실행
@@ -204,7 +206,7 @@ class NominatimGeocodingService {
         'namedetails': '1',
       };
 
-      print('🔍 Nominatim 검색: $query (타임아웃: 20초)');
+      KSYLog.debug('🔍 Nominatim 검색: $query (타임아웃: 20초)');
 
       // Nominatim API를 위한 더 긴 타임아웃 설정
       final customDio = Dio();
@@ -229,13 +231,13 @@ class NominatimGeocodingService {
             .map((json) => NominatimLocation.fromJson(json))
             .toList();
 
-        print('📍 검색 결과: ${results.length}개');
+        KSYLog.debug('📍 검색 결과: ${results.length}개');
         return results;
       }
 
       return [];
     } catch (e) {
-      print('🚨 Nominatim API 오류: $e');
+      KSYLog.error('🚨 Nominatim API 오류: $e');
       rethrow;
     }
   }

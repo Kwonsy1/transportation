@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../constants/api_constants.dart';
+import '../utils/ksy_log.dart';
 
 /// HTTP 클라이언트 관리 서비스
 class HttpService {
@@ -20,8 +21,12 @@ class HttpService {
 
   /// Dio 인터셉터 설정
   void _setupInterceptors() {
-    _dio.options.connectTimeout = Duration(seconds: ApiConstants.connectTimeoutSeconds);
-    _dio.options.receiveTimeout = Duration(seconds: ApiConstants.receiveTimeoutSeconds);
+    _dio.options.connectTimeout = Duration(
+      seconds: ApiConstants.connectTimeoutSeconds,
+    );
+    _dio.options.receiveTimeout = Duration(
+      seconds: ApiConstants.receiveTimeoutSeconds,
+    );
 
     // 요청/응답 로깅 인터셉터 (디버그 모드에서만)
     _dio.interceptors.add(
@@ -39,7 +44,7 @@ class HttpService {
       InterceptorsWrapper(
         onError: (error, handler) {
           // 여기서 공통 에러 처리 로직을 추가할 수 있습니다
-          print('HTTP Error: ${error.message}');
+          KSYLog.error('HTTP Error: ${error.message}');
           handler.next(error);
         },
       ),

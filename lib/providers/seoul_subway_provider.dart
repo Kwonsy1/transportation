@@ -8,6 +8,7 @@ import '../services/seoul_subway_api_service.dart';
 import '../services/nominatim_geocoding_service.dart';
 export '../services/nominatim_geocoding_service.dart' show NominatimLocation;
 import '../services/hive_subway_service.dart';
+import '../utils/ksy_log.dart';
 
 /// 서울 지하철 역 정보를 관리하는 프로바이더
 class SeoulSubwayProvider extends ChangeNotifier {
@@ -67,8 +68,8 @@ class SeoulSubwayProvider extends ChangeNotifier {
         notifyListeners();
 
         final stats = getCoordinateStatistics();
-        print('Hive에서 ${_allStations.length}개 역 정보 로드됨');
-        print(
+        KSYLog.info('Hive에서 ${_allStations.length}개 역 정보 로드됨');
+        KSYLog.info(
           '📍 좌표 통계: ${stats['hasCoordinates']}/${stats['total']} (미업데이트: ${stats['missingCoordinates']})',
         );
 
@@ -150,8 +151,8 @@ class SeoulSubwayProvider extends ChangeNotifier {
       }
     }
 
-    print('🔄 데이터 병합 완료: ${mergedStations.length}개 역');
-    print('📍 좌표 보존: $coordinatesPreserved개, 손실: $coordinatesLost개');
+    KSYLog.info('🔄 데이터 병합 완료: ${mergedStations.length}개 역');
+    KSYLog.info('📍 좌표 보존: $coordinatesPreserved개, 손실: $coordinatesLost개');
     return mergedStations;
   }
 
@@ -162,23 +163,23 @@ class SeoulSubwayProvider extends ChangeNotifier {
     try {
       await _hiveService.initialize();
       _isHiveInitialized = true;
-      print('✅ Hive 초기화 완료');
+      KSYLog.database('Initialize', 'Hive subway service', null);
     } catch (e) {
-      print('❌ Hive 초기화 실패: $e');
+      KSYLog.error('Hive 초기화 실패', e);
       rethrow;
     }
   }
 
   /// API에서 역 정보 가져오기
   Future<void> _fetchStationsFromApi() async {
-    print('API에서 지하철 역 정보 가져오는 중...');
+    KSYLog.debug('API에서 지하철 역 정보 가져오는 중...');
 
     final stations = await _apiService.getAllStations();
 
     if (stations.isNotEmpty) {
       _allStations = stations;
       await _saveToHive(stations);
-      print('API에서 ${_allStations.length}개 역 정보 로드됨');
+      KSYLog.info('API에서 ${_allStations.length}개 역 정보 로드됨');
       notifyListeners();
     } else {
       throw Exception('API에서 데이터를 가져올 수 없습니다');
@@ -190,15 +191,15 @@ class SeoulSubwayProvider extends ChangeNotifier {
     try {
       // 캐시가 만료되었는지 확인
       if (!_hiveService.isCacheExpired()) {
-        print('Hive 캐시가 아직 유효함 - 백그라운드 업데이트 건너뛰기');
+        KSYLog.info('Hive 캐시가 아직 유효함 - 백그라운드 업데이트 건너뛰기');
         return;
       }
 
-      print('⚠️ 백그라운드 업데이트 시작 - 좌표 데이터 손실 위험!');
+      KSYLog.warning('⚠️ 백그라운드 업데이트 시작 - 좌표 데이터 손실 위험!');
 
       // 기존 좌표 통계 확인
       final beforeStats = getCoordinateStatistics();
-      print(
+      KSYLog.info(
         '📊 업데이트 전 좌표 통계: ${beforeStats['hasCoordinates']}/${beforeStats['total']}',
       );
 
@@ -212,13 +213,13 @@ class SeoulSubwayProvider extends ChangeNotifier {
         notifyListeners();
 
         final afterStats = getCoordinateStatistics();
-        print(
+        KSYLog.info(
           '📊 업데이트 후 좌표 통계: ${afterStats['hasCoordinates']}/${afterStats['total']}',
         );
-        print('백그라운드에서 역 정보 업데이트됨 (좌표 보존)');
+        KSYLog.info('백그라운드에서 역 정보 업데이트됨 (좌표 보존)');
       }
     } catch (e) {
-      print('백그라운드 업데이트 실패: $e');
+      KSYLog.error('백그라운드 업데이트 실패', e);
       // 에러는 무시 (사용자에게 표시하지 않음)
     }
   }
@@ -250,7 +251,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
         _searchResults = await _apiService.searchStationsByName(query);
       }
 
-      print('검색 결과: ${_searchResults.length}개 역');
+      KSYLog.info('검색 결과: ${_searchResults.length}개 역');
     } catch (e) {
       _setError('검색 중 오류가 발생했습니다: $e');
       _searchResults = [];
@@ -280,7 +281,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
         radiusKm: radiusKm,
       );
 
-      print('주변 역 검색 결과: ${_nearbyStations.length}개 역');
+      KSYLog.info('주변 역 검색 결과: ${_nearbyStations.length}개 역');
     } catch (e) {
       _setError('주변 역 검색 중 오류가 발생했습니다: $e');
       _nearbyStations = [];
@@ -297,7 +298,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
           .map((hiveStation) => hiveStation.toSeoulSubwayStation())
           .toList();
     } catch (e) {
-      print('Hive 로드 오류: $e');
+      KSYLog.error('Hive 로드 오류', e);
       return [];
     }
   }
@@ -306,12 +307,12 @@ class SeoulSubwayProvider extends ChangeNotifier {
   Future<void> _saveToHive(List<SeoulSubwayStation> stations) async {
     try {
       await _hiveService.saveStations(stations);
-      print('💾 ${stations.length}개 역 정보가 Hive에 저장되었습니다');
+      KSYLog.info('💾 ${stations.length}개 역 정보가 Hive에 저장되었습니다');
 
       // 즈시 검증
       await _immediateVerification(stations);
     } catch (e) {
-      print('Hive 저장 오류: $e');
+      KSYLog.error('Hive 저장 오류', e);
     }
   }
 
@@ -326,17 +327,17 @@ class SeoulSubwayProvider extends ChangeNotifier {
       final originalStats = _calculateStats(originalStations);
       final reloadedStats = _calculateStats(reloadedStations);
 
-      print(
-        '🔍 즈시 검증: 원본 ${originalStats['hasCoordinates']} vs 로드 ${reloadedStats['hasCoordinates']}',
+      KSYLog.debug(
+        '🔍 즉시 검증: 원본 ${originalStats['hasCoordinates']} vs 로드 ${reloadedStats['hasCoordinates']}',
       );
 
       if (originalStats['hasCoordinates'] != reloadedStats['hasCoordinates']) {
-        print('⚠️ 좌표 데이터 손실 발견! Hive 저장/로드 과정에 문제 있음');
+        KSYLog.warning('⚠️ 좌표 데이터 손실 발견! Hive 저장/로드 과정에 문제 있음');
       } else {
-        print('✅ 좌표 데이터 보존 확인됨');
+        KSYLog.info('✅ 좌표 데이터 보존 확인됨');
       }
     } catch (e) {
-      print('❌ 즈시 검증 오류: $e');
+      KSYLog.error('❌ 즉시 검증 오류', e);
     }
   }
 
@@ -367,7 +368,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
             )
             .toList();
 
-        print('🔒 좌표 보존 모드: ${stationsWithCoordinates.length}개 역의 좌표 데이터 백업');
+        KSYLog.info('🔒 좌표 보존 모드: ${stationsWithCoordinates.length}개 역의 좌표 데이터 백업');
 
         // 전체 데이터 삭제
         await _hiveService.clearAllData();
@@ -375,14 +376,14 @@ class SeoulSubwayProvider extends ChangeNotifier {
         // 좌표 데이터만 복원
         if (stationsWithCoordinates.isNotEmpty) {
           await _saveToHive(stationsWithCoordinates);
-          print('📍 좌표 데이터 복원 완료: ${stationsWithCoordinates.length}개 역');
+          KSYLog.info('📍 좌표 데이터 복원 완료: ${stationsWithCoordinates.length}개 역');
         }
       } else {
         await _hiveService.clearAllData();
-        print('🗑️ 모든 Hive 데이터가 초기화되었습니다');
+        KSYLog.info('🗑️ 모든 Hive 데이터가 초기화되었습니다');
       }
     } catch (e) {
-      print('❌ Hive 초기화 오류: $e');
+      KSYLog.error('❌ Hive 초기화 오류', e);
     }
   }
 
@@ -395,20 +396,20 @@ class SeoulSubwayProvider extends ChangeNotifier {
     try {
       if (forceFullRefresh) {
         // 강제 전체 새로고침 (기존 방식)
-        print('🔄 강제 전체 새로고침 시작');
+        KSYLog.info('🔄 강제 전체 새로고침 시작');
         await clearCache();
         _allStations = [];
         _searchResults = [];
         _nearbyStations = [];
         await initialize();
-        print('✅ 강제 전체 새로고침 완료');
+        KSYLog.info('✅ 강제 전체 새로고침 완료');
         return;
       }
 
       // 스마트 새로고침 (좌표 데이터 보존)
       final existingStations = List<SeoulSubwayStation>.from(_allStations);
       final beforeStats = getCoordinateStatistics();
-      print(
+      KSYLog.info(
         '📋 기존 좌표 데이터 백업: ${existingStations.length}개 역 (좌표 있음: ${beforeStats['hasCoordinates']}개)',
       );
 
@@ -418,7 +419,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
 
       // API에서 최신 데이터 가져오기
       final freshStations = await _apiService.getAllStations();
-      print('🔄 API에서 새로운 데이터 ${freshStations.length}개 역 받음');
+      KSYLog.info('🔄 API에서 새로운 데이터 ${freshStations.length}개 역 받음');
 
       if (freshStations.isNotEmpty) {
         // 기존 좌표 데이터를 새 데이터에 병합
@@ -433,20 +434,20 @@ class SeoulSubwayProvider extends ChangeNotifier {
         await _saveToHive(mergedStations);
 
         final afterStats = getCoordinateStatistics();
-        print('✅ 스마트 새로고침 완료: ${_allStations.length}개 역');
-        print(
+        KSYLog.info('✅ 스마트 새로고침 완료: ${_allStations.length}개 역');
+        KSYLog.info(
           '📍 좌표 보존 결과: ${beforeStats['hasCoordinates']} → ${afterStats['hasCoordinates']}개',
         );
 
         if (afterStats['hasCoordinates']! < beforeStats['hasCoordinates']!) {
-          print('⚠️ 경고: 좌표 데이터 일부 손실 발생!');
+          KSYLog.warning('⚠️ 경고: 좌표 데이터 일부 손실 발생!');
         }
       } else {
-        print('⚠️ API에서 새로운 데이터를 받지 못함 - 기존 데이터 유지');
+        KSYLog.warning('⚠️ API에서 새로운 데이터를 받지 못함 - 기존 데이터 유지');
       }
     } catch (e) {
       _setError('새로고침 중 오류가 발생했습니다: $e');
-      print('❌ 새로고침 오류: $e');
+      KSYLog.error('❌ 새로고침 오류', e);
     } finally {
       _setLoading(false);
     }
@@ -505,7 +506,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('📍 좌표 업데이트 시작: 총 $_totalStationsToUpdate개 역');
+      KSYLog.info('📍 좌표 업데이트 시작: 총 $_totalStationsToUpdate개 역');
 
       final updatedStations = await _geocodingService
           .batchUpdateStationCoordinates(
@@ -513,30 +514,30 @@ class SeoulSubwayProvider extends ChangeNotifier {
             forceUpdate: true, // 강제 업데이트 활성화
             onProgress: (current, total) {
               _coordinateUpdateProgress = current;
-              print('🔄 진행률: $current/$total');
+              KSYLog.debug('🔄 진행률: $current/$total');
               notifyListeners();
             },
             onStationUpdated: (updatedStation) {
               _currentUpdatingStation = updatedStation.subwayStationName;
-              print('📍 업데이트 완료: ${updatedStation.subwayStationName}');
+              KSYLog.debug('📍 업데이트 완료: ${updatedStation.subwayStationName}');
               notifyListeners();
             },
           );
 
-      print('✅ 좌표 업데이트 완료: ${updatedStations.length}개 역');
+      KSYLog.info('✅ 좌표 업데이트 완료: ${updatedStations.length}개 역');
 
       // 업데이트된 역 수 세기
       final coordinatesUpdated = updatedStations
           .where((s) => s.latitude != null && s.longitude != null)
           .length;
 
-      print('📍 좌표가 업데이트된 역: $coordinatesUpdated개');
+      KSYLog.info('📍 좌표가 업데이트된 역: $coordinatesUpdated개');
 
       // 업데이트된 데이터를 서울 지하철 데이터에도 반영
       await _updateSeoulStationsWithCoordinates(updatedStations);
     } catch (e) {
       _setError('좌표 업데이트 중 오류가 발생했습니다: $e');
-      print('😨 좌표 업데이트 오류: $e');
+      KSYLog.error('😨 좌표 업데이트 오류', e);
     } finally {
       _isUpdatingCoordinates = false;
       _currentUpdatingStation = null;
@@ -564,7 +565,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
       int updateCount = 0;
       int matchFailCount = 0;
 
-      print('🔄 좌표 반영 시작: ${updatedStations.length}개 역 처리');
+      KSYLog.info('🔄 좌표 반영 시작: ${updatedStations.length}개 역 처리');
 
       // 업데이트된 좌표를 서울 지하철 데이터에 적용
       for (final updatedStation in updatedStations) {
@@ -595,7 +596,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
           _allStations[index] = updatedSeoulStation;
           updateCount++;
 
-          print(
+          KSYLog.debug(
             '📍 ${originalStation.stationName} 좌표 업데이트: ${updatedStation.latitude}, ${updatedStation.longitude}',
           );
 
@@ -613,11 +614,11 @@ class SeoulSubwayProvider extends ChangeNotifier {
               updatedStation.longitude == null ||
               updatedStation.latitude == 0.0 ||
               updatedStation.longitude == 0.0) {
-            print(
+            KSYLog.debug(
               '❌ 좌표 없음: "${updatedStation.subwayStationName}" (좌표: ${updatedStation.latitude}, ${updatedStation.longitude})',
             );
           } else {
-            print(
+            KSYLog.debug(
               '❌ 매칭 실패: "${updatedStation.subwayStationName}" (좌표: ${updatedStation.latitude}, ${updatedStation.longitude})',
             );
 
@@ -636,7 +637,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
                 .toList();
 
             if (similarStations.isNotEmpty) {
-              print(
+              KSYLog.debug(
                 '   🔍 유사한 역명들: ${similarStations.map((s) => s.stationName).join(", ")}',
               );
             }
@@ -644,18 +645,18 @@ class SeoulSubwayProvider extends ChangeNotifier {
         }
       }
 
-      print('💾 업데이트 결과: 성공 $updateCount개, 매칭실패 $matchFailCount개');
+      KSYLog.info('💾 업데이트 결과: 성공 $updateCount개, 매칭실패 $matchFailCount개');
 
       // 전체 데이터를 Hive에 저장 (백업)
       await _saveToHive(_allStations);
       notifyListeners();
 
-      print('💾 업데이트된 좌표 데이터가 Hive에 저장되었습니다.');
+      KSYLog.info('💾 업데이트된 좌표 데이터가 Hive에 저장되었습니다.');
 
       // 저장 후 검증
       await _verifyHiveSave();
     } catch (e) {
-      print('😨 서울 지하철 데이터 업데이트 오류: $e');
+      KSYLog.error('😨 서울 지하철 데이터 업데이트 오류', e);
     }
   }
 
@@ -675,7 +676,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
         limitResults: 5,
       );
 
-      print('📍 $stationName 검색 결과: ${locations.length}개');
+      KSYLog.info('📍 $stationName 검색 결과: ${locations.length}개');
       return locations;
     } catch (e) {
       _setError('좌표 검색 중 오류가 발생했습니다: $e');
@@ -687,7 +688,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
 
   /// 강제 전체 새로고침 (좌표 포함 모든 데이터 삭제)
   Future<void> forceFullRefresh() async {
-    print('🔄 강제 전체 새로고침 시작 - 모든 데이터 삭제');
+    KSYLog.info('🔄 강제 전체 새로고침 시작 - 모든 데이터 삭제');
     await refresh(forceFullRefresh: true);
   }
 
@@ -697,30 +698,30 @@ class SeoulSubwayProvider extends ChangeNotifier {
       throw Exception('이미 좌표 업데이트가 진행 중입니다.');
     }
 
-    print('🔍 좌표 상태 분석 시작...');
+    KSYLog.info('🔍 좌표 상태 분석 시작...');
 
     // 좌표가 없는 역들만 필터링
     final stationsNeedingUpdate = _allStations
         .where((station) => station.latitude == 0.0 || station.longitude == 0.0)
         .toList();
 
-    print('📊 전체 역 수: ${_allStations.length}');
-    print('📊 좌표가 없는 역 수: ${stationsNeedingUpdate.length}');
+    KSYLog.info('📊 전체 역 수: ${_allStations.length}');
+    KSYLog.info('📊 좌표가 없는 역 수: ${stationsNeedingUpdate.length}');
 
     // 디버깅: 좌표가 없는 역들 목록 출력 (처음 5개만)
     final sampleStations = stationsNeedingUpdate.take(5).toList();
     for (final station in sampleStations) {
-      print(
+      KSYLog.debug(
         '❌ ${station.stationName}: lat=${station.latitude}, lng=${station.longitude}',
       );
     }
 
     if (stationsNeedingUpdate.isEmpty) {
-      print('✅ 모든 역에 좌표가 이미 설정되어 있습니다.');
+      KSYLog.info('✅ 모든 역에 좌표가 이미 설정되어 있습니다.');
       return;
     }
 
-    print('📍 좌표가 없는 ${stationsNeedingUpdate.length}개 역만 업데이트 시작');
+    KSYLog.info('📍 좌표가 없는 ${stationsNeedingUpdate.length}개 역만 업데이트 시작');
 
     // SubwayStation으로 변환
     final subwayStations = stationsNeedingUpdate
@@ -728,10 +729,10 @@ class SeoulSubwayProvider extends ChangeNotifier {
         .toList();
 
     // 변환된 SubwayStation 객체들도 확인
-    print('🔄 SubwayStation 변환 완료: ${subwayStations.length}개');
+    KSYLog.debug('🔄 SubwayStation 변환 완료: ${subwayStations.length}개');
     for (int i = 0; i < math.min(3, subwayStations.length); i++) {
       final station = subwayStations[i];
-      print(
+      KSYLog.debug(
         '🔄 변환된 역 $i: ${station.subwayStationName} (lat: ${station.latitude}, lng: ${station.longitude})',
       );
     }
@@ -743,26 +744,26 @@ class SeoulSubwayProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('🚀 Nominatim 업데이트 시작: ${subwayStations.length}개 역');
+      KSYLog.info('🚀 Nominatim 업데이트 시작: ${subwayStations.length}개 역');
 
       final updatedStations = await _geocodingService.batchUpdateStationCoordinates(
         stations: subwayStations,
         forceUpdate: false, // 이미 좌표가 있는 역은 건너뛰기
         onProgress: (current, total) {
           _coordinateUpdateProgress = current;
-          print('🔄 진행률: $current/$total');
+          KSYLog.debug('🔄 진행률: $current/$total');
           notifyListeners();
         },
         onStationUpdated: (updatedStation) {
           _currentUpdatingStation = updatedStation.subwayStationName;
-          print(
+          KSYLog.debug(
             '📍 업데이트 완료: ${updatedStation.subwayStationName} (${updatedStation.latitude}, ${updatedStation.longitude})',
           );
           notifyListeners();
         },
       );
 
-      print('✅ 선택적 좌표 업데이트 완료: ${updatedStations.length}개 역');
+      KSYLog.info('✅ 선택적 좌표 업데이트 완료: ${updatedStations.length}개 역');
 
       // 실제로 좌표가 업데이트된 역 수 확인
       final successfulUpdates = updatedStations
@@ -775,13 +776,13 @@ class SeoulSubwayProvider extends ChangeNotifier {
           )
           .length;
 
-      print('📍 실제로 좌표가 업데이트된 역: $successfulUpdates개');
+      KSYLog.info('📍 실제로 좌표가 업데이트된 역: $successfulUpdates개');
 
       // 업데이트된 데이터를 서울 지하철 데이터에도 반영
       await _updateSeoulStationsWithCoordinates(updatedStations);
     } catch (e) {
       _setError('좌표 업데이트 중 오류가 발생했습니다: $e');
-      print('😨 좌표 업데이트 오류: $e');
+      KSYLog.error('😨 좌표 업데이트 오류', e);
     } finally {
       _isUpdatingCoordinates = false;
       _currentUpdatingStation = null;
@@ -837,7 +838,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
               )
               .first;
 
-          print(
+          KSYLog.debug(
             '🔍 $stationName 검증: '
             '메모리(${memoryStation.latitude}, ${memoryStation.longitude}) '
             'vs Hive(${hiveStation.latitude}, ${hiveStation.longitude})',
@@ -845,14 +846,14 @@ class SeoulSubwayProvider extends ChangeNotifier {
 
           if (memoryStation.latitude != hiveStation.latitude ||
               memoryStation.longitude != hiveStation.longitude) {
-            print('⚠️ $stationName 좌표 불일치 발견!');
+            KSYLog.warning('⚠️ $stationName 좌표 불일치 발견!');
           }
         } catch (e) {
-          print('🔍 $stationName: 검증 대상 역을 찾을 수 없음');
+          KSYLog.debug('🔍 $stationName: 검증 대상 역을 찾을 수 없음');
         }
       }
     } catch (e) {
-      print('❌ Hive 저장 검증 오류: $e');
+      KSYLog.error('❌ Hive 저장 검증 오류', e);
     }
   }
 
@@ -878,7 +879,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
 
   void _setError(String error) {
     _errorMessage = error;
-    print('SeoulSubwayProvider 오류: $error');
+    KSYLog.error('SeoulSubwayProvider 오류: $error');
     notifyListeners();
   }
 

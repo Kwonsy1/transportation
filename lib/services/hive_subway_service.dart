@@ -2,6 +2,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:math' as math;
 import '../models/hive/seoul_subway_station_hive.dart';
 import '../models/seoul_subway_station.dart';
+import '../utils/ksy_log.dart';
 
 /// Hive를 사용한 지하철역 정보 저장 서비스
 class HiveSubwayService {
@@ -36,10 +37,10 @@ class HiveSubwayService {
       _stationBox = await Hive.openBox<SeoulSubwayStationHive>(_boxName);
       _settingsBox = await Hive.openBox(_settingsBoxName);
 
-      print('✅ Hive 초기화 완료');
-      print('📊 저장된 역 수: ${_stationBox?.length ?? 0}개');
+      KSYLog.info('✅ Hive 초기화 완료');
+      KSYLog.info('📊 저장된 역 수: ${_stationBox?.length ?? 0}개');
     } catch (e) {
-      print('❌ Hive 초기화 오류: $e');
+      KSYLog.error('❌ Hive 초기화 오류', e);
       rethrow;
     }
   }
@@ -48,15 +49,15 @@ class HiveSubwayService {
   List<SeoulSubwayStationHive> getAllStations() {
     try {
       if (_stationBox == null) {
-        print('⚠️ Hive Box가 초기화되지 않음');
+        KSYLog.warning('⚠️ Hive Box가 초기화되지 않음');
         return [];
       }
 
       final stations = _stationBox!.values.toList();
-      print('📖 Hive에서 ${stations.length}개 역 조회');
+      KSYLog.debug('📖 Hive에서 ${stations.length}개 역 조회');
       return stations;
     } catch (e) {
-      print('❌ 역 정보 조회 오류: $e');
+      KSYLog.error('❌ 역 정보 조회 오류', e);
       return [];
     }
   }
@@ -90,9 +91,9 @@ class HiveSubwayService {
       // 마지막 업데이트 시간 저장
       await _settingsBox?.put(_lastUpdateKey, DateTime.now().toIso8601String());
 
-      print('💾 ${stations.length}개 역 정보가 Hive에 저장됨');
+      KSYLog.info('💾 ${stations.length}개 역 정보가 Hive에 저장됨');
     } catch (e) {
-      print('❌ 역 정보 저장 오류: $e');
+      KSYLog.error('❌ 역 정보 저장 오류', e);
       rethrow;
     }
   }
@@ -118,12 +119,12 @@ class HiveSubwayService {
           longitude,
         );
         await _stationBox!.put(key, updatedStation);
-        print('📍 $stationName 좌표 업데이트: $latitude, $longitude');
+        KSYLog.debug('📍 $stationName 좌표 업데이트: $latitude, $longitude');
       } else {
-        print('⚠️ 역을 찾을 수 없음: $stationName ($lineName)');
+        KSYLog.warning('⚠️ 역을 찾을 수 없음: $stationName ($lineName)');
       }
     } catch (e) {
-      print('❌ 좌표 업데이트 오류: $e');
+      KSYLog.error('❌ 좌표 업데이트 오류', e);
       rethrow;
     }
   }
@@ -134,7 +135,7 @@ class HiveSubwayService {
       final allStations = getAllStations();
       return allStations.where((station) => station.isCoordinateEmpty).toList();
     } catch (e) {
-      print('❌ 좌표 없는 역 조회 오류: $e');
+      KSYLog.error('❌ 좌표 없는 역 조회 오류', e);
       return [];
     }
   }
@@ -160,7 +161,7 @@ class HiveSubwayService {
         'missingCoordinates': missingCoordinates,
       };
     } catch (e) {
-      print('❌ 좌표 통계 조회 오류: $e');
+      KSYLog.error('❌ 좌표 통계 조회 오류', e);
       return {'total': 0, 'hasCoordinates': 0, 'missingCoordinates': 0};
     }
   }
@@ -176,7 +177,7 @@ class HiveSubwayService {
 
       return now.difference(lastUpdate) > _cacheExpiration;
     } catch (e) {
-      print('❌ 캐시 만료 확인 오류: $e');
+      KSYLog.error('❌ 캐시 만료 확인 오류', e);
       return true;
     }
   }
@@ -194,7 +195,7 @@ class HiveSubwayService {
                 .contains(searchQuery.replaceAll('역', ''));
       }).toList();
     } catch (e) {
-      print('❌ 역 검색 오류: $e');
+      KSYLog.error('❌ 역 검색 오류', e);
       return [];
     }
   }
@@ -244,7 +245,7 @@ class HiveSubwayService {
 
       return nearbyStations;
     } catch (e) {
-      print('❌ 주변 역 검색 오류: $e');
+      KSYLog.error('❌ 주변 역 검색 오류', e);
       return [];
     }
   }
@@ -254,9 +255,9 @@ class HiveSubwayService {
     try {
       await _stationBox?.clear();
       await _settingsBox?.clear();
-      print('🗑️ 모든 Hive 데이터 삭제됨');
+      KSYLog.info('🗑️ 모든 Hive 데이터 삭제됨');
     } catch (e) {
-      print('❌ 데이터 삭제 오류: $e');
+      KSYLog.error('❌ 데이터 삭제 오류', e);
       rethrow;
     }
   }
@@ -266,9 +267,9 @@ class HiveSubwayService {
     try {
       await _stationBox?.close();
       await _settingsBox?.close();
-      print('🔒 Hive Box 닫기 완료');
+      KSYLog.info('🔒 Hive Box 닫기 완료');
     } catch (e) {
-      print('❌ Hive 리소스 정리 오류: $e');
+      KSYLog.error('❌ Hive 리소스 정리 오류', e);
     }
   }
 

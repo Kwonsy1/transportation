@@ -6,6 +6,7 @@ import '../models/api_response.dart';
 import '../models/station_group.dart';
 import '../services/subway_api_service.dart';
 import '../services/favorites_storage_service.dart';
+import '../utils/ksy_log.dart';
 
 /// 지하철 정보 상태 관리 Provider (국토교통부 API 기준)
 class SubwayProvider extends ChangeNotifier {
@@ -150,15 +151,15 @@ class SubwayProvider extends ChangeNotifier {
       _exitBusRoutes = futures[0] as List<SubwayExitBusRoute>;
       _exitFacilities = futures[1] as List<SubwayExitFacility>;
       
-      print('Provider 로드 결과:');
-      print('exitBusRoutes 개수: ${_exitBusRoutes.length}');
-      print('exitFacilities 개수: ${_exitFacilities.length}');
-      print('exitBusRoutes 데이터: $_exitBusRoutes');
-      print('exitFacilities 데이터: $_exitFacilities');
+      KSYLog.debug('Provider 로드 결과:');
+      KSYLog.debug('exitBusRoutes 개수: ${_exitBusRoutes.length}');
+      KSYLog.debug('exitFacilities 개수: ${_exitFacilities.length}');
+      KSYLog.object('exitBusRoutes 데이터', _exitBusRoutes);
+      KSYLog.object('exitFacilities 데이터', _exitFacilities);
       
       // 데이터가 비어있거나 부족하면 테스트 데이터 추가
       if (_exitBusRoutes.length < 2 || _exitFacilities.length < 2) {
-        print('출구 정보가 부족해서 테스트 데이터를 추가합니다.');
+        KSYLog.warning('출구 정보가 부족해서 테스트 데이터를 추가합니다.');
         
         // 기존 데이터에 테스트 데이터 추가
         _exitBusRoutes.addAll([
@@ -297,9 +298,9 @@ class SubwayProvider extends ChangeNotifier {
       _favoriteStationGroups.clear();
       notifyListeners();
       await FavoritesStorageService.clearAllFavorites();
-      print('모든 즐겨찾기 제거 완료');
+      KSYLog.info('모든 즐겨찾기 제거 완료');
     } catch (e) {
-      print('즐겨찾기 전체 제거 오류: $e');
+      KSYLog.error('즐겨찾기 전체 제거 오류', e);
     }
   }
 
@@ -420,9 +421,9 @@ class SubwayProvider extends ChangeNotifier {
   Future<void> _saveFavoritesToLocal() async {
     try {
       await FavoritesStorageService.saveFavoriteStationGroups(_favoriteStationGroups);
-      print('즐겨찾기 그룹 저장: ${_favoriteStationGroups.length}개');
+      KSYLog.debug('즐겨찾기 그룹 저장: ${_favoriteStationGroups.length}개');
     } catch (e) {
-      print('즐겨찾기 저장 오류: $e');
+      KSYLog.error('즐겨찾기 저장 오류', e);
       // 오류 발생시도 앱 동작은 계속됨
     }
   }
@@ -434,9 +435,9 @@ class SubwayProvider extends ChangeNotifier {
       _favoriteStationGroups.clear();
       _favoriteStationGroups.addAll(loadedFavorites);
       notifyListeners();
-      print('즐겨찾기 로드 완료: ${_favoriteStationGroups.length}개');
+      KSYLog.info('즐겨찾기 로드 완료: ${_favoriteStationGroups.length}개');
     } catch (e) {
-      print('즐겨찾기 로드 오류: $e');
+      KSYLog.error('즐겨찾기 로드 오류', e);
       // 오류 발생시 빈 리스트로 유지
     }
   }
@@ -449,16 +450,16 @@ class SubwayProvider extends ChangeNotifier {
   /// 지도에서 역명으로 StationGroup 가져오기 (캐싱 활용)
   Future<StationGroup?> getStationGroupByName(String stationName) async {
     final cleanName = _cleanStationName(stationName);
-    print('🗺️ 지도에서 역 검색: $stationName -> $cleanName');
+    KSYLog.debug('🗺️ 지도에서 역 검색: $stationName -> $cleanName');
     
     // 1. 캐시 확인
     if (_isValidCache(cleanName)) {
-      print('✅ 캐시에서 반환: $cleanName');
+      KSYLog.cache('get', cleanName, true);
       return _stationGroupCache[cleanName];
     }
     
     // 2. API 검색
-    print('🔍 API 검색 시작: $cleanName');
+    KSYLog.debug('🔍 API 검색 시작: $cleanName');
     
     try {
       final searchResults = await _apiService.searchStations(
@@ -466,7 +467,7 @@ class SubwayProvider extends ChangeNotifier {
       );
       
       if (searchResults.isEmpty) {
-        print('❌ 검색 결과 없음: $cleanName');
+        KSYLog.warning('❌ 검색 결과 없음: $cleanName');
         return null;
       }
       
@@ -481,11 +482,11 @@ class SubwayProvider extends ChangeNotifier {
       _stationGroupCache[cleanName] = matchingGroup;
       _cacheTimestamps[cleanName] = DateTime.now();
       
-      print('✅ API 검색 성공 및 캐싱: $cleanName (호선 ${matchingGroup.stations.length}개)');
+      KSYLog.info('✅ API 검색 성공 및 캐싱: $cleanName (호선 ${matchingGroup.stations.length}개)');
       return matchingGroup;
       
     } catch (e) {
-      print('❌ API 검색 실패: $cleanName - $e');
+      KSYLog.error('❌ API 검색 실패: $cleanName', e);
       return null;
     }
   }
@@ -518,7 +519,7 @@ class SubwayProvider extends ChangeNotifier {
   void clearStationGroupCache() {
     _stationGroupCache.clear();
     _cacheTimestamps.clear();
-    print('🗑️ 역 그룹 캐시 클리어');
+    KSYLog.cache('clear', 'stationGroupCache', null);
   }
   
   /// 캐시 통계

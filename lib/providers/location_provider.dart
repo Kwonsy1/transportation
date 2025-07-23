@@ -5,6 +5,7 @@ import '../models/subway_station.dart';
 import '../models/seoul_subway_station.dart';
 import '../services/location_service.dart';
 import '../providers/seoul_subway_provider.dart';
+import '../utils/ksy_log.dart';
 
 /// 위치 정보 상태 관리 Provider (Hive 데이터 기반)
 class LocationProvider extends ChangeNotifier {
@@ -118,7 +119,7 @@ class LocationProvider extends ChangeNotifier {
   /// 현재 화면에 보이는 역들만 로드 (동적)
   Future<void> loadVisibleStations({double? radiusKm}) async {
     if (_seoulSubwayProvider == null) {
-      print('⚠️ SeoulSubwayProvider가 설정되지 않음');
+      KSYLog.warning('⚠️ SeoulSubwayProvider가 설정되지 않음');
       return;
     }
 
@@ -138,7 +139,7 @@ class LocationProvider extends ChangeNotifier {
           )
           .toList();
 
-      print('📍 좌표가 있는 역: ${allStations.length}개');
+      KSYLog.debug('📍 좌표가 있는 역: ${allStations.length}개');
 
       // 현재 지도 영역 내의 역들만 필터링
       final visibleStations = <SeoulSubwayStation>[];
@@ -177,17 +178,17 @@ class LocationProvider extends ChangeNotifier {
       // 성능을 위해 최대 100개로 제한
       _visibleStations = visibleStations.take(100).toList();
 
-      print('🗺️ 화면 내 역 로드 완료: ${_visibleStations.length}개');
-      print('📍 중심: $_currentCenterLat, $_currentCenterLng');
-      print('🔍 반지름: ${radius.toStringAsFixed(1)}km');
+      KSYLog.info('🗺️ 화면 내 역 로드 완료: ${_visibleStations.length}개');
+      KSYLog.location('화면 중심', _currentCenterLat, _currentCenterLng);
+      KSYLog.debug('🔍 반지름: ${radius.toStringAsFixed(1)}km');
 
       if (_visibleStations.isNotEmpty) {
-        print('🚇 가장 가까운 역: ${_visibleStations.first.stationName}');
+        KSYLog.debug('🚇 가장 가까운 역: ${_visibleStations.first.stationName}');
       }
     } catch (e) {
       _errorMessage = '화면 내 역 검색에 실패했습니다: ${e.toString()}';
       _visibleStations = [];
-      print('❌ 화면 내 역 로드 오류: $e');
+      KSYLog.error('❌ 화면 내 역 로드 오류', e);
     } finally {
       _isLoadingVisibleStations = false;
       notifyListeners();

@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import '../utils/ksy_log.dart';
 
 part 'subway_station.g.dart';
 
@@ -128,8 +129,8 @@ class SubwayExitBusRoute {
 
   factory SubwayExitBusRoute.fromJson(Map<String, dynamic> json) {
     // API 응답 필드명 디버깅
-    print('SubwayExitBusRoute JSON keys: ${json.keys.toList()}');
-    print('SubwayExitBusRoute JSON data: $json');
+    KSYLog.debug('SubwayExitBusRoute JSON keys: ${json.keys.toList()}');
+    KSYLog.object('SubwayExitBusRoute JSON data', json);
     
     return SubwayExitBusRoute(
       subwayStationId: json['subwayStationId']?.toString() ?? '',
@@ -192,8 +193,8 @@ class SubwayExitFacility {
 
   factory SubwayExitFacility.fromJson(Map<String, dynamic> json) {
     // API 응답 필드명 디버깅
-    print('SubwayExitFacility JSON keys: ${json.keys.toList()}');
-    print('SubwayExitFacility JSON data: $json');
+    KSYLog.debug('SubwayExitFacility JSON keys: ${json.keys.toList()}');
+    KSYLog.object('SubwayExitFacility JSON data', json);
     
     return SubwayExitFacility(
       subwayStationId: json['subwayStationId']?.toString() ?? '',

@@ -1,5 +1,6 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../utils/ksy_log.dart';
 
 /// 위치 서비스 관리 클래스
 class LocationService {
@@ -18,7 +19,7 @@ class LocationService {
       final status = await Permission.location.request();
       return status == PermissionStatus.granted;
     } catch (e) {
-      print('위치 권한 요청 오류: $e');
+      KSYLog.error('위치 권한 요청 오류', e);
       return false;
     }
   }
@@ -29,7 +30,7 @@ class LocationService {
       final status = await Permission.location.status;
       return status == PermissionStatus.granted;
     } catch (e) {
-      print('위치 권한 확인 오류: $e');
+      KSYLog.error('위치 권한 확인 오류', e);
       return false;
     }
   }
@@ -39,7 +40,7 @@ class LocationService {
     try {
       return await Geolocator.isLocationServiceEnabled();
     } catch (e) {
-      print('위치 서비스 상태 확인 오류: $e');
+      KSYLog.error('위치 서비스 상태 확인 오류', e);
       return false;
     }
   }
@@ -47,11 +48,11 @@ class LocationService {
   /// 현재 위치 가져오기
   Future<Position?> getCurrentPosition() async {
     try {
-      print('LocationService: 현재 위치 가져오기 시작'); // 디버깅
+      KSYLog.debug('LocationService: 현재 위치 가져오기 시작');
       
       // 위치 서비스 활성화 확인
       final serviceEnabled = await isLocationServiceEnabled();
-      print('LocationService: 위치 서비스 활성화: $serviceEnabled'); // 디버깅
+      KSYLog.debug('LocationService: 위치 서비스 활성화: $serviceEnabled');
       
       if (!serviceEnabled) {
         throw Exception('위치 서비스가 비활성화되어 있습니다.');
@@ -59,11 +60,11 @@ class LocationService {
 
       // 위치 권한 확인
       final hasPermission = await checkLocationPermission();
-      print('LocationService: 위치 권한: $hasPermission'); // 디버깅
+      KSYLog.debug('LocationService: 위치 권한: $hasPermission');
       
       if (!hasPermission) {
         final granted = await requestLocationPermission();
-        print('LocationService: 권한 요청 결과: $granted'); // 디버깅
+        KSYLog.debug('LocationService: 권한 요청 결과: $granted');
         
         if (!granted) {
           throw Exception('위치 권한이 필요합니다.');
@@ -71,18 +72,18 @@ class LocationService {
       }
 
       // 현재 위치 가져오기
-      print('LocationService: Geolocator로 위치 가져오기 시작');
+      KSYLog.debug('LocationService: Geolocator로 위치 가져오기 시작');
       
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 15), // 타임아웃 늘림
       );
       
-      print('LocationService: 위치 가져오기 성공: ${position.latitude}, ${position.longitude}');
+      KSYLog.location('위치 가져오기 성공', position.latitude, position.longitude);
       return position;
       
     } catch (e) {
-      print('LocationService: 현재 위치 가져오기 오류: $e');
+      KSYLog.error('LocationService: 현재 위치 가져오기 오류', e);
       rethrow;
     }
   }
@@ -132,7 +133,7 @@ class LocationService {
     try {
       await Geolocator.openLocationSettings();
     } catch (e) {
-      print('LocationService: 위치 설정 열기 오류: $e');
+      KSYLog.error('LocationService: 위치 설정 열기 오류', e);
     }
   }
 
@@ -145,7 +146,7 @@ class LocationService {
         }
       });
     } catch (e) {
-      print('LocationService: 앱 설정 열기 오류: $e');
+      KSYLog.error('LocationService: 앱 설정 열기 오류', e);
     }
   }
 }

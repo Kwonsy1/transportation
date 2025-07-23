@@ -4,6 +4,7 @@ import '../models/subway_schedule.dart';
 import '../models/next_train_info.dart';
 import '../models/api_response.dart';
 import 'http_service.dart';
+import '../utils/ksy_log.dart';
 
 /// 국토교통부 지하철정보 API 서비스
 class SubwayApiService {
@@ -47,7 +48,7 @@ class SubwayApiService {
 
       return [];
     } catch (e) {
-      print('지하철역 검색 오류: $e');
+      KSYLog.error('지하철역 검색 오류: $e');
       rethrow;
     }
   }
@@ -96,7 +97,7 @@ class SubwayApiService {
 
       return [];
     } catch (e) {
-      print('시간표 조회 오류: $e');
+      KSYLog.error('시간표 조회 오류: $e');
       rethrow;
     }
   }
@@ -160,7 +161,7 @@ class SubwayApiService {
 
       return nextTrains;
     } catch (e) {
-      print('다음 열차 정보 조회 오류: $e');
+      KSYLog.error('다음 열차 정보 조회 오류: $e');
       rethrow;
     }
   }
@@ -189,30 +190,28 @@ class SubwayApiService {
 
       if (response.data != null) {
         final apiResponse = SubwayApiResponse.fromJson(response.data);
-        
-        print('Exit Bus Routes API Response:');
-        print('Success: ${apiResponse.isSuccess}');
-        print('Items count: ${apiResponse.items.length}');
-        print('Sample items: ${apiResponse.items.take(2).toList()}');
+
+        KSYLog.info('Exit Bus Routes API Response:');
+        KSYLog.debug('Success: ${apiResponse.isSuccess}');
+        KSYLog.debug('Items count: ${apiResponse.items.length}');
+        KSYLog.debug('Sample items: ${apiResponse.items.take(2).toList()}');
 
         if (!apiResponse.isSuccess) {
           throw Exception(apiResponse.errorMessage ?? '출구별 버스노선 조회에 실패했습니다.');
         }
 
-        final busRoutes = apiResponse.items
-            .map((item) {
-              print('Parsing bus route item: $item');
-              return SubwayExitBusRoute.fromJson(item);
-            })
-            .toList();
-            
-        print('Parsed bus routes: ${busRoutes.length}');
+        final busRoutes = apiResponse.items.map((item) {
+          KSYLog.debug('Parsing bus route item: $item');
+          return SubwayExitBusRoute.fromJson(item);
+        }).toList();
+
+        KSYLog.info('Parsed bus routes: ${busRoutes.length}');
         return busRoutes;
       }
 
       return [];
     } catch (e) {
-      print('출구별 버스노선 조회 오류: $e');
+      KSYLog.error('출구별 버스노선 조회 오류: $e');
       rethrow;
     }
   }
@@ -241,30 +240,28 @@ class SubwayApiService {
 
       if (response.data != null) {
         final apiResponse = SubwayApiResponse.fromJson(response.data);
-        
-        print('Exit Facilities API Response:');
-        print('Success: ${apiResponse.isSuccess}');
-        print('Items count: ${apiResponse.items.length}');
-        print('Sample items: ${apiResponse.items.take(2).toList()}');
+
+        KSYLog.info('Exit Facilities API Response:');
+        KSYLog.debug('Success: ${apiResponse.isSuccess}');
+        KSYLog.debug('Items count: ${apiResponse.items.length}');
+        KSYLog.debug('Sample items: ${apiResponse.items.take(2).toList()}');
 
         if (!apiResponse.isSuccess) {
           throw Exception(apiResponse.errorMessage ?? '출구별 주변시설 조회에 실패했습니다.');
         }
 
-        final facilities = apiResponse.items
-            .map((item) {
-              print('Parsing facility item: $item');
-              return SubwayExitFacility.fromJson(item);
-            })
-            .toList();
-            
-        print('Parsed facilities: ${facilities.length}');
+        final facilities = apiResponse.items.map((item) {
+          KSYLog.debug('Parsing facility item: $item');
+          return SubwayExitFacility.fromJson(item);
+        }).toList();
+
+        KSYLog.info('Parsed facilities: ${facilities.length}');
         return facilities;
       }
 
       return [];
     } catch (e) {
-      print('출구별 주변시설 조회 오류: $e');
+      KSYLog.error('출구별 주변시설 조회 오류: $e');
       rethrow;
     }
   }
@@ -304,7 +301,7 @@ class SubwayApiService {
           final stations = await searchStations(stationName: keyword);
           allStations.addAll(stations);
         } catch (e) {
-          print('$keyword 검색 중 오류: $e');
+          KSYLog.error('$keyword 검색 중 오류: $e');
           // 개별 검색 실패는 무시하고 계속 진행
         }
       }
@@ -317,7 +314,7 @@ class SubwayApiService {
 
       return uniqueStations.values.toList();
     } catch (e) {
-      print('전체 지하철역 목록 조회 오료: $e');
+      KSYLog.error('전체 지하철역 목록 조회 오류', e);
       rethrow;
     }
   }

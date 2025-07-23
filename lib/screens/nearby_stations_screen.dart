@@ -7,6 +7,7 @@ import '../models/subway_station.dart';
 import '../widgets/station_card.dart';
 import '../models/station_group.dart';
 import 'multi_line_station_detail_screen.dart';
+import '../utils/ksy_log.dart';
 
 /// 주변 지하철역 화면
 class NearbyStationsScreen extends StatefulWidget {
@@ -27,31 +28,31 @@ class _NearbyStationsScreenState extends State<NearbyStationsScreen> {
 
   Future<void> _checkAndLoadData() async {
     final provider = context.read<LocationProvider>();
-    
-    print('주변역 화면 - 현재 상태 확인');
-    print('위치 권한: ${provider.hasLocationPermission}');
-    print('현재 위치: ${provider.currentPosition}');
-    print('주변 역 개수: ${provider.nearbyStations.length}');
-    
+
+    KSYLog.info('주변역 화면 - 현재 상태 확인');
+    KSYLog.debug('위치 권한: ${provider.hasLocationPermission}');
+    KSYLog.debug('현재 위치: ${provider.currentPosition}');
+    KSYLog.debug('주변 역 개수: ${provider.nearbyStations.length}');
+
     // 이미 주변 역 데이터가 있으면 추가 로드 생략
     if (provider.nearbyStations.isNotEmpty) {
-      print('이미 주변 역 데이터가 있음 - 새로고침 생략');
+      KSYLog.info('이미 주변 역 데이터가 있음 - 새로고침 생략');
       return;
     }
-    
+
     // 주변 역 데이터가 없으면 로드
     await _loadNearbyStations();
   }
 
   Future<void> _loadNearbyStations() async {
     final provider = context.read<LocationProvider>();
-    
+
     // 위치 권한 확인
     if (!provider.hasLocationPermission) {
       final granted = await provider.requestLocationPermission();
       if (!granted) return;
     }
-    
+
     // 현재 위치 가져오기 및 주변 역 검색
     await provider.getCurrentLocation();
     if (provider.currentPosition != null) {
@@ -69,7 +70,7 @@ class _NearbyStationsScreenState extends State<NearbyStationsScreen> {
       stationName: station.stationName,
       stations: [station],
     );
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -87,10 +88,7 @@ class _NearbyStationsScreenState extends State<NearbyStationsScreen> {
       appBar: AppBar(
         title: const Text('주변 지하철역'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refreshData,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData),
         ],
       ),
       body: Consumer<LocationProvider>(
@@ -106,10 +104,7 @@ class _NearbyStationsScreenState extends State<NearbyStationsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SpinKitWave(
-                    color: AppColors.primary,
-                    size: 50.0,
-                  ),
+                  SpinKitWave(color: AppColors.primary, size: 50.0),
                   SizedBox(height: AppSpacing.md),
                   Text(
                     '주변 지하철역을 검색하고 있습니다...',
@@ -164,10 +159,7 @@ class _NearbyStationsScreenState extends State<NearbyStationsScreen> {
                     color: AppColors.textSecondary,
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  const Text(
-                    '주변에 지하철역이 없습니다',
-                    style: AppTextStyles.bodyMedium,
-                  ),
+                  const Text('주변에 지하철역이 없습니다', style: AppTextStyles.bodyMedium),
                   const SizedBox(height: AppSpacing.md),
                   TextButton(
                     onPressed: _refreshData,
@@ -224,7 +216,7 @@ class _NearbyStationsScreenState extends State<NearbyStationsScreen> {
                       ],
                     ),
                   ),
-                
+
                 // 역 목록
                 Expanded(
                   child: ListView.builder(

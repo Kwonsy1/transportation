@@ -1,6 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/station_group.dart';
 import '../models/hive/station_group_hive.dart';
+import '../utils/ksy_log.dart';
 
 /// Hive 기반 즐겨찾기 데이터 저장 서비스
 class HiveFavoritesStorageService {
@@ -37,10 +38,10 @@ class HiveFavoritesStorageService {
       _favoritesBox = await Hive.openBox<StationGroupHive>(_favoritesBoxName);
       _settingsBox = await Hive.openBox(_settingsBoxName);
       
-      print('✅ 즐겨찾기 Hive 초기화 완료');
-      print('📊 저장된 즐겨찾기 수: ${_favoritesBox?.length ?? 0}개');
+      KSYLog.info('✅ 즐겨찾기 Hive 초기화 완료');
+      KSYLog.info('📊 저장된 즐겨찾기 수: ${_favoritesBox?.length ?? 0}개');
     } catch (e) {
-      print('❌ 즐겨찾기 Hive 초기화 오류: $e');
+      KSYLog.error('❌ 즐겨찾기 Hive 초기화 오류', e);
       rethrow;
     }
   }
@@ -52,8 +53,8 @@ class HiveFavoritesStorageService {
         throw Exception('Hive Box가 초기화되지 않음');
       }
 
-      print('=== 즐겨찾기 저장 시작 ===');
-      print('저장할 그룹 개수: ${stationGroups.length}');
+      KSYLog.info('=== 즐겨찾기 저장 시작 ===');
+      KSYLog.info('저장할 그룹 개수: ${stationGroups.length}');
 
       // 기존 데이터 클리어
       await _favoritesBox!.clear();
@@ -63,10 +64,10 @@ class HiveFavoritesStorageService {
         final group = stationGroups[i];
         final hiveGroup = StationGroupHive.fromStationGroup(group);
         
-        print('그룹 $i: ${group.stationName} (역 개수: ${group.stations.length})');
+        KSYLog.debug('그룹 $i: ${group.stationName} (역 개수: ${group.stations.length})');
         for (int j = 0; j < group.stations.length; j++) {
           final station = group.stations[j];
-          print('  역 $j: ${station.subwayStationName} (${station.subwayRouteName})');
+          KSYLog.debug('  역 $j: ${station.subwayStationName} (${station.subwayRouteName})');
         }
 
         // 역명을 키로 사용하여 저장
@@ -76,10 +77,9 @@ class HiveFavoritesStorageService {
       // 마지막 업데이트 시간 저장
       await _settingsBox?.put(_lastUpdateKey, DateTime.now().toIso8601String());
 
-      print('💾 즐겨찾기 ${stationGroups.length}개 저장 완료');
+      KSYLog.info('💾 즐겨찾기 ${stationGroups.length}개 저장 완료');
     } catch (e) {
-      print('❌ 즐겨찾기 저장 오류: $e');
-      print('오류 스택 트레이스: ${StackTrace.current}');
+      KSYLog.error('❌ 즐겨찾기 저장 오류', e, StackTrace.current);
       throw Exception('즐겨찾기 저장에 실패했습니다: $e');
     }
   }
@@ -91,13 +91,13 @@ class HiveFavoritesStorageService {
         throw Exception('Hive Box가 초기화되지 않음');
       }
 
-      print('=== 즐겨찾기 로드 시작 ===');
+      KSYLog.info('=== 즐겨찾기 로드 시작 ===');
       
       final hiveStationGroups = _favoritesBox!.values.toList();
-      print('저장된 데이터 개수: ${hiveStationGroups.length}');
+      KSYLog.info('저장된 데이터 개수: ${hiveStationGroups.length}');
 
       if (hiveStationGroups.isEmpty) {
-        print('저장된 즐겨찾기 없음');
+        KSYLog.info('저장된 즐겨찾기 없음');
         return [];
       }
 
@@ -107,18 +107,17 @@ class HiveFavoritesStorageService {
           final hiveGroup = hiveStationGroups[i];
           final stationGroup = hiveGroup.toStationGroup();
           stationGroups.add(stationGroup);
-          print('그룹 $i 변환 성공: ${stationGroup.stationName}');
+          KSYLog.debug('그룹 $i 변환 성공: ${stationGroup.stationName}');
         } catch (e) {
-          print('그룹 $i 변환 실패: $e');
+          KSYLog.warning('그룹 $i 변환 실패: $e');
           // 개별 그룹 실패시 건너뛰고 계속
         }
       }
 
-      print('즐겨찾기 ${stationGroups.length}개 로드 완료');
+      KSYLog.info('즐겨찾기 ${stationGroups.length}개 로드 완료');
       return stationGroups;
     } catch (e) {
-      print('❌ 즐겨찾기 로드 오류: $e');
-      print('오류 스택 트레이스: ${StackTrace.current}');
+      KSYLog.error('❌ 즐겨찾기 로드 오류', e, StackTrace.current);
       // 에러 발생시 빈 리스트 반환
       return [];
     }
@@ -137,12 +136,12 @@ class HiveFavoritesStorageService {
       if (!isDuplicate) {
         final hiveGroup = StationGroupHive.fromStationGroup(stationGroup);
         await _favoritesBox!.put(stationGroup.stationName, hiveGroup);
-        print('즐겨찾기에 ${stationGroup.cleanStationName} 추가');
+        KSYLog.info('즐겨찾기에 ${stationGroup.cleanStationName} 추가');
       } else {
-        print('이미 즐겨찾기에 있는 역: ${stationGroup.cleanStationName}');
+        KSYLog.warning('이미 즐겨찾기에 있는 역: ${stationGroup.cleanStationName}');
       }
     } catch (e) {
-      print('❌ 즐겨찾기 추가 오류: $e');
+      KSYLog.error('❌ 즐겨찾기 추가 오류', e);
       throw Exception('즐겨찾기 추가에 실패했습니다: $e');
     }
   }
@@ -155,9 +154,9 @@ class HiveFavoritesStorageService {
       }
 
       await _favoritesBox!.delete(stationGroup.stationName);
-      print('즐겨찾기에서 ${stationGroup.cleanStationName} 제거');
+      KSYLog.info('즐겨찾기에서 ${stationGroup.cleanStationName} 제거');
     } catch (e) {
-      print('❌ 즐겨찾기 제거 오류: $e');
+      KSYLog.error('❌ 즐겨찾기 제거 오류', e);
       throw Exception('즐겨찾기 제거에 실패했습니다: $e');
     }
   }
@@ -171,9 +170,9 @@ class HiveFavoritesStorageService {
 
       await _favoritesBox!.clear();
       await _settingsBox?.clear();
-      print('모든 즐겨찾기 제거 완료');
+      KSYLog.info('모든 즐겨찾기 제거 완료');
     } catch (e) {
-      print('❌ 즐겨찾기 전체 제거 오류: $e');
+      KSYLog.error('❌ 즐겨찾기 전체 제거 오류', e);
       throw Exception('즐겨찾기 전체 제거에 실패했습니다: $e');
     }
   }
@@ -196,7 +195,7 @@ class HiveFavoritesStorageService {
       final allGroups = _favoritesBox!.values;
       return allGroups.any((group) => group.cleanStationName == cleanName);
     } catch (e) {
-      print('❌ 즐겨찾기 확인 오류: $e');
+      KSYLog.error('❌ 즐겨찾기 확인 오류', e);
       return false;
     }
   }
@@ -209,7 +208,7 @@ class HiveFavoritesStorageService {
       }
       return _favoritesBox!.length;
     } catch (e) {
-      print('❌ 즐겨찾기 개수 확인 오류: $e');
+      KSYLog.error('❌ 즐겨찾기 개수 확인 오류', e);
       return 0;
     }
   }
@@ -219,16 +218,16 @@ class HiveFavoritesStorageService {
     try {
       // SharedPreferences 기반 서비스 임포트가 필요한 경우
       // 기존 FavoritesStorageService에서 데이터 로드하여 Hive로 이전
-      print('📦 SharedPreferences에서 Hive로 마이그레이션 시작');
+      KSYLog.info('📦 SharedPreferences에서 Hive로 마이그레이션 시작');
       
       // 기존 데이터가 있다면 로드
       // final legacyFavorites = await FavoritesStorageService.loadFavoriteStationGroups();
       // if (legacyFavorites.isNotEmpty) {
       //   await saveFavoriteStationGroups(legacyFavorites);
-      //   print('✅ ${legacyFavorites.length}개 즐겨찾기 마이그레이션 완료');
+      //   KSYLog.info('✅ ${legacyFavorites.length}개 즐겨찾기 마이그레이션 완료');
       // }
     } catch (e) {
-      print('❌ 마이그레이션 오류: $e');
+      KSYLog.error('❌ 마이그레이션 오류', e);
     }
   }
 
@@ -252,7 +251,7 @@ class HiveFavoritesStorageService {
         'box_size': _favoritesBox!.length,
       };
     } catch (e) {
-      print('❌ 저장소 정보 확인 오류: $e');
+      KSYLog.error('❌ 저장소 정보 확인 오류', e);
       return {'error': e.toString()};
     }
   }
@@ -262,9 +261,9 @@ class HiveFavoritesStorageService {
     try {
       await _favoritesBox?.close();
       await _settingsBox?.close();
-      print('🔒 즐겨찾기 Hive Box 닫기 완료');
+      KSYLog.info('🔒 즐겨찾기 Hive Box 닫기 완료');
     } catch (e) {
-      print('❌ 즐겨찾기 Hive 리소스 정리 오류: $e');
+      KSYLog.error('❌ 즐겨찾기 Hive 리소스 정리 오류', e);
     }
   }
 }

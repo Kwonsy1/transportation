@@ -12,6 +12,7 @@ import '../models/subway_station.dart';
 import '../models/seoul_subway_station.dart';
 import '../models/station_group.dart';
 import 'multi_line_station_detail_screen.dart';
+import '../utils/ksy_log.dart';
 
 /// 네이버 지도 네이티브 화면 (동적 마커 로딩)
 class NaverNativeMapScreen extends StatefulWidget {
@@ -38,7 +39,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
   @override
   void initState() {
     super.initState();
-    print('🗺️ 네이티브 지도 화면 시작');
+    KSYLog.lifecycle('🗺️ 네이티브 지도 화면 시작');
 
     // LocationProvider 변경 리스너
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -66,32 +67,32 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
 
     // SeoulSubwayProvider 데이터가 없으면 초기화
     if (!seoulSubwayProvider.hasStations && !seoulSubwayProvider.isLoading) {
-      print('🚇 SeoulSubwayProvider 데이터 초기화 시작...');
+      KSYLog.info('🚇 SeoulSubwayProvider 데이터 초기화 시작...');
       await seoulSubwayProvider.initialize();
-      print(
+      KSYLog.info(
         '🚇 SeoulSubwayProvider 데이터 초기화 완료: ${seoulSubwayProvider.hasStations}',
       );
     } else if (seoulSubwayProvider.isLoading) {
       // 이미 로딩 중이면 완료될 때까지 대기
-      print('🚇 SeoulSubwayProvider 로딩 중, 대기...');
+      KSYLog.info('🚇 SeoulSubwayProvider 로딩 중, 대기...');
       while (seoulSubwayProvider.isLoading) {
         await Future.delayed(const Duration(milliseconds: 100));
       }
-      print('🚇 SeoulSubwayProvider 로딩 완료: ${seoulSubwayProvider.hasStations}');
+      KSYLog.info('🚇 SeoulSubwayProvider 로딩 완료: ${seoulSubwayProvider.hasStations}');
     }
   }
 
   /// 지도 준비 완료 콜백
   Future<void> _onMapReady(NaverMapController controller) async {
     _mapController = controller;
-    print('🗺️ 네이버 지도 준비 완료');
+    KSYLog.info('🗺️ 네이버 지도 준비 완료');
 
     final locationProvider = context.read<LocationProvider>();
     final seoulSubwayProvider = context.read<SeoulSubwayProvider>();
 
     // 데이터 초기화가 완료될 때까지 대기
     if (!seoulSubwayProvider.hasStations) {
-      print('🚇 SeoulSubwayProvider 데이터 초기화 대기 중...');
+      KSYLog.info('🚇 SeoulSubwayProvider 데이터 초기화 대기 중...');
       await _initializeData();
     }
 
@@ -142,7 +143,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       final center = cameraPosition.target;
       final zoomLevel = cameraPosition.zoom;
 
-      print('📍 지도 중심: ${center.latitude}, ${center.longitude}, 줌: $zoomLevel');
+      KSYLog.debug('📍 지도 중심: ${center.latitude}, ${center.longitude}, 줌: $zoomLevel');
 
       // LocationProvider 업데이트
       final locationProvider = context.read<LocationProvider>();
@@ -156,7 +157,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       final stations = locationProvider.visibleStations;
 
       if (stations.isEmpty) {
-        print('🚇 표시할 역이 없음');
+        KSYLog.debug('🚇 표시할 역이 없음');
         return;
       }
 
@@ -167,7 +168,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       // 마커 업데이트
       await _updateStationMarkers(stations);
     } catch (e) {
-      print('❌ 화면 내 역 로드 오류: $e');
+      KSYLog.error('❌ 화면 내 역 로드 오류', e);
     }
   }
 
@@ -204,7 +205,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
           .map((item) => item['station'] as SeoulSubwayStation)
           .toList();
 
-      print(
+      KSYLog.info(
         '🚇 지도 중심(${center.latitude.toStringAsFixed(4)}, ${center.longitude.toStringAsFixed(4)})에서 가장 가까운 ${stationsToShow.length}개 마커 추가',
       );
 
@@ -224,18 +225,18 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
           await _mapController!.addOverlay(marker);
           _stationMarkers.add(marker);
 
-          print(
+          KSYLog.debug(
             '📍 마커 추가 완료: ${station.stationName} (총 ${_stationMarkers.length}개)',
           );
         } catch (e) {
-          print('❌ 마커 추가 실패: ${station.stationName} - $e');
+          KSYLog.error('❌ 마커 추가 실패: ${station.stationName}', e);
           // 개별 마커 실패는 무시하고 계속
         }
       }
 
-      print('✅ 마커 ${_stationMarkers.length}개 추가 완료');
+      KSYLog.info('✅ 마커 ${_stationMarkers.length}개 추가 완료');
     } catch (e) {
-      print('❌ 마커 업데이트 오류: $e');
+      KSYLog.error('❌ 마커 업데이트 오류', e);
     }
   }
 
@@ -245,7 +246,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
     int index,
   ) async {
     try {
-      print('🎯 마커 생성 시도: ${station.stationName} (${station.lineName})');
+      KSYLog.debug('🎯 마커 생성 시도: ${station.stationName} (${station.lineName})');
 
       final markerIcon = await NOverlayImage.fromWidget(
         widget: Container(
@@ -286,12 +287,12 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
         anchor: const NPoint(0.5, 0.5),
       );
 
-      print(
+      KSYLog.debug(
         '✅ 마커 생성 성공: ${station.stationName} (${station.latitude}, ${station.longitude})',
       );
       return marker;
     } catch (e) {
-      print('❌ 마커 생성 실패: ${station.stationName} - $e');
+      KSYLog.error('❌ 마커 생성 실패: ${station.stationName}', e);
       rethrow;
     }
   }
@@ -306,7 +307,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       }
       _stationMarkers.clear();
     } catch (e) {
-      print('❌ 마커 제거 오류: $e');
+      KSYLog.error('❌ 마커 제거 오류', e);
     }
   }
 
@@ -353,9 +354,9 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       // 마커를 지도에 추가
       await _mapController!.addOverlay(_currentLocationMarker!);
 
-      print('📍 현재 위치 마커 추가: $lat, $lng');
+      KSYLog.location('현재 위치 마커 추가', lat, lng);
     } catch (e) {
-      print('❌ 현재 위치 마커 추가 오류: $e');
+      KSYLog.error('❌ 현재 위치 마커 추가 오류', e);
     }
   }
 
@@ -392,7 +393,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
         final lat = locationProvider.currentPosition!.latitude;
         final lng = locationProvider.currentPosition!.longitude;
 
-        print('📍 현재 위치: $lat, $lng');
+        KSYLog.location('현재 위치 획득', lat, lng);
 
         // 지도 중심 이동
         if (_mapController != null) {
@@ -421,7 +422,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
         });
       }
     } catch (e) {
-      print('❌ 위치 가져오기 오류: $e');
+      KSYLog.error('❌ 위치 가져오기 오류', e);
       setState(() {
         _errorMessage = '위치를 가져오는데 실패했습니다: ${e.toString()}';
       });
@@ -611,7 +612,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
 
       if (stationGroup == null) {
         // 검색 실패 시 기본 데이터로 폴백
-        print('⚠️ API 검색 실패, 기본 데이터 사용: ${seoulStation.stationName}');
+        KSYLog.warning('⚠️ API 검색 실패, 기본 데이터 사용: ${seoulStation.stationName}');
         final fallbackStation = seoulStation.toSubwayStation();
         final fallbackGroup = StationGroup(
           stationName: fallbackStation.stationName,
@@ -643,7 +644,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
         orElse: () => stationGroup.stations.first,
       );
 
-      print(
+      KSYLog.info(
         '✅ 지도 연동 성공: ${stationGroup.stationName} (호선 ${stationGroup.stations.length}개, 초기 선택: ${initialStation.effectiveLineNumber})',
       );
 
@@ -664,7 +665,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
         Navigator.of(context).pop();
       }
 
-      print('❌ 지도 연동 오류: $e');
+      KSYLog.error('❌ 지도 연동 오류', e);
 
       // 오류 시 기본 데이터로 폴백
       final fallbackStation = seoulStation.toSubwayStation();
@@ -833,7 +834,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
                     break;
                 }
               } catch (e) {
-                print('메뉴 액션 오류: $e');
+                KSYLog.error('메뉴 액션 오류', e);
                 setState(() {
                   _isLoading = false;
                   _errorMessage = '작업을 수행하는데 실패했습니다.';
@@ -886,7 +887,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
             onCameraChange: _onCameraChange,
             onCameraIdle: _onCameraIdle,
             onMapTapped: (point, coord) {
-              print('🗺️ 지도 클릭: ${coord.latitude}, ${coord.longitude}');
+              KSYLog.ui('🗺️ 지도 클릭', '${coord.latitude}, ${coord.longitude}');
             },
           ),
 

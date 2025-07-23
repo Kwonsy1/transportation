@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
 import '../models/subway_station.dart';
+import '../utils/ksy_log.dart';
 
 /// 출구 정보를 표시하는 카드 위젯
 class ExitInfoCard extends StatelessWidget {
@@ -16,11 +17,11 @@ class ExitInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 디버깅 정보
-    print('ExitInfoCard build:');
-    print('busRoutesByExit keys: ${busRoutesByExit.keys.toList()}');
-    print('facilitiesByExit keys: ${facilitiesByExit.keys.toList()}');
-    print('busRoutesByExit: $busRoutesByExit');
-    print('facilitiesByExit: $facilitiesByExit');
+    KSYLog.debug('ExitInfoCard build:');
+    KSYLog.debug('busRoutesByExit keys: ${busRoutesByExit.keys.toList()}');
+    KSYLog.debug('facilitiesByExit keys: ${facilitiesByExit.keys.toList()}');
+    KSYLog.object('busRoutesByExit', busRoutesByExit);
+    KSYLog.object('facilitiesByExit', facilitiesByExit);
     
     // 모든 출구 번호 수집
     final allExitNumbers = <String>{};

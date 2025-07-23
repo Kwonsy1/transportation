@@ -5,6 +5,7 @@ import 'station_search_screen.dart';
 import 'favorites_screen.dart';
 import 'naver_native_map_screen.dart'; // 네이버 네이티브 맵 사용
 import 'seoul_subway_test_screen.dart'; // 서울 지하철 API 테스트
+import '../utils/ksy_log.dart';
 
 /// 메인 홈 화면 (하단 네비게이션 포함)
 class HomeScreen extends StatefulWidget {
@@ -27,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    KSYLog.lifecycle('HomeScreen initState');
     // 앱 시작 시 위치 권한 상태 확인
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<LocationProvider>().initializeLocationStatus();
@@ -40,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
+          KSYLog.ui('Bottom navigation tap', 'index: $index');
           setState(() {
             _currentIndex = index;
           });

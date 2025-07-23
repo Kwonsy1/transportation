@@ -6,6 +6,7 @@ import '../models/subway_station.dart';
 import '../models/station_group.dart';
 import '../providers/subway_provider.dart';
 import '../providers/location_provider.dart';
+import '../utils/ksy_log.dart';
 
 /// 멀티 호선 지원 역 상세 정보 화면
 class MultiLineStationDetailScreen extends StatefulWidget {
@@ -116,7 +117,7 @@ class _MultiLineStationDetailScreenState
         return timeString;
       }
     } catch (e) {
-      print('시간 포맷 오류: $timeString, $e');
+      KSYLog.error('시간 포맷 오류: $timeString', e);
       return timeString; // 오류 시 원본 문자열 반환
     }
   }

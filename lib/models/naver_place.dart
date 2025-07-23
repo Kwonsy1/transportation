@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import '../utils/ksy_log.dart';
 
 part 'naver_place.g.dart';
 
@@ -27,7 +28,8 @@ class NaverPlace {
     required this.mapy,
   });
 
-  factory NaverPlace.fromJson(Map<String, dynamic> json) => _$NaverPlaceFromJson(json);
+  factory NaverPlace.fromJson(Map<String, dynamic> json) =>
+      _$NaverPlaceFromJson(json);
   Map<String, dynamic> toJson() => _$NaverPlaceToJson(this);
 
   /// HTML 태그 제거된 제목
@@ -39,18 +41,18 @@ class NaverPlace {
       final x = double.tryParse(mapx) ?? 0;
       return x / 10000000.0;
     } catch (e) {
-      print('경도 파싱 오류: $mapx, $e');
+      KSYLog.debug('경도 파싱 오류: $mapx, $e');
       return 0.0;
     }
   }
 
-  /// 위도 (latitude)  
+  /// 위도 (latitude)
   double get latitude {
     try {
       final y = double.tryParse(mapy) ?? 0;
       return y / 10000000.0;
     } catch (e) {
-      print('위도 파싱 오류: $mapy, $e');
+      KSYLog.debug('위도 파싱 오류: $mapy, $e');
       return 0.0;
     }
   }
@@ -60,25 +62,40 @@ class NaverPlace {
     final cleanText = cleanTitle.toLowerCase();
     final cleanCategory = category.toLowerCase();
     final cleanDescription = description.toLowerCase();
-    
+
     final subwayKeywords = [
-      '지하철', '전철', '역', 'subway', 'metro', 'station',
-      '1호선', '2호선', '3호선', '4호선', '5호선', '6호선', '7호선', '8호선', '9호선',
+      '지하철',
+      '전철',
+      '역',
+      'subway',
+      'metro',
+      'station',
+      '1호선',
+      '2호선',
+      '3호선',
+      '4호선',
+      '5호선',
+      '6호선',
+      '7호선',
+      '8호선',
+      '9호선',
     ];
-    
-    return subwayKeywords.any((keyword) => 
-        cleanText.contains(keyword) || 
-        cleanCategory.contains(keyword) ||
-        cleanDescription.contains(keyword));
+
+    return subwayKeywords.any(
+      (keyword) =>
+          cleanText.contains(keyword) ||
+          cleanCategory.contains(keyword) ||
+          cleanDescription.contains(keyword),
+    );
   }
 
   /// 호선 정보 추출
   String get lineInfo {
     final text = '$cleanTitle $category $description'.toLowerCase();
-    
+
     final linePatterns = {
       '1호선': '1',
-      '2호선': '2', 
+      '2호선': '2',
       '3호선': '3',
       '4호선': '4',
       '5호선': '5',
@@ -94,13 +111,13 @@ class NaverPlace {
       '수인': '수인',
       '경강': '경강',
     };
-    
+
     for (final entry in linePatterns.entries) {
       if (text.contains(entry.key)) {
         return entry.value;
       }
     }
-    
+
     return '기타';
   }
 
@@ -119,5 +136,6 @@ class NaverPlace {
   }
 
   @override
-  int get hashCode => Object.hash(cleanTitle, latitude.round(), longitude.round());
+  int get hashCode =>
+      Object.hash(cleanTitle, latitude.round(), longitude.round());
 }
