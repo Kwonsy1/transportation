@@ -251,6 +251,7 @@ class _SeoulSubwayTestScreenState extends State<SeoulSubwayTestScreen> {
   }
 
 
+
   /// 노선 이름 축약
   String _getLineShortName(String lineName) {
     // 숫자가 있으면 숫자만 반환

@@ -735,6 +735,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
   }
 
 
+
   /// 노선 이름 축약
   String _getLineShortName(String lineName) {
     final numberRegex = RegExp(r'(\d+)');

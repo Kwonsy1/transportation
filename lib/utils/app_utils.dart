@@ -4,9 +4,54 @@ import '../constants/api_constants.dart';
 
 /// 지하철 관련 유틸리티 함수들 (국토교통부 API 기준)
 class SubwayUtils {
+  /// 호선명을 표준 형태로 정규화 (컬러 매칭용)
+  static String normalizeLineNameForColor(String lineName) {
+    // 숫자로 시작하는 호선 처리 (01 → 1, 02 → 2, 01호선 → 1)
+    final numberMatch = RegExp(r'^0?(\d+)').firstMatch(lineName);
+    if (numberMatch != null) {
+      return numberMatch.group(1)!;
+    }
+
+    // 특수 호선명 처리 (정확한 매칭 우선, 긴 이름부터)
+    // 신분당선이 분당선보다 먼저 와야 함
+    if (lineName.contains('신분당')) {
+      return '신분당';
+    }
+    if (lineName.contains('수인분당')) {
+      return '수인분당';
+    }
+    if (lineName.contains('분당')) {
+      return '분당';
+    }
+    if (lineName.contains('경의중앙')) {
+      return '경의중앙';
+    }
+    if (lineName.contains('우이신설')) {
+      return '우이신설';
+    }
+    if (lineName.contains('경춘')) {
+      return '경춘';
+    }
+    if (lineName.contains('서해')) {
+      return '서해';
+    }
+    if (lineName.contains('김포')) {
+      return '김포';
+    }
+    if (lineName.contains('신림')) {
+      return '신림';
+    }
+
+    // 매칭되지 않으면 원본 반환 (호선 제거)
+    return lineName.replaceAll('호선', '').trim();
+  }
+
   /// 호선 번호/이름으로 색상 반환
   static Color getLineColor(String lineNumber) {
-    switch (lineNumber) {
+    // 입력값을 정규화
+    final normalizedLine = normalizeLineNameForColor(lineNumber);
+
+    switch (normalizedLine) {
       // 서울 지하철 1-9호선
       case '1':
         return AppColors.line1;
@@ -26,23 +71,23 @@ class SubwayUtils {
         return AppColors.line8;
       case '9':
         return AppColors.line9;
-      
+
       // 광역철도 노선들
       case '경의중앙':
       case '경의중앙선':
         return AppColors.gyeonguiJungang;
-      case '분당':
-      case '분당선':
-        return AppColors.bundang;
       case '신분당':
       case '신분당선':
         return AppColors.sinbundang;
-      case '경춘':
-      case '경춘선':
-        return AppColors.gyeongchun;
       case '수인분당':
       case '수인분당선':
         return AppColors.suinBundang;
+      case '분당':
+      case '분당선':
+        return AppColors.bundang;
+      case '경춘':
+      case '경춘선':
+        return AppColors.gyeongchun;
       case '우이신설':
       case '우이신설선':
         return AppColors.uiSinseol;
@@ -55,7 +100,7 @@ class SubwayUtils {
       case '신림':
       case '신림선':
         return AppColors.sillim;
-      
+
       default:
         return AppColors.textSecondary;
     }
@@ -115,7 +160,7 @@ class SubwayUtils {
   static String getCurrentDailyTypeCode() {
     final now = DateTime.now();
     final weekday = now.weekday;
-    
+
     if (weekday == 6) {
       return ApiConstants.saturdayCode; // 토요일
     } else if (weekday == 7) {
@@ -151,7 +196,8 @@ class SubwayUtils {
   /// 현재 시간 기준으로 다음 열차 여부 확인
   static bool isUpcomingTrain(String arrivalTime) {
     final now = DateTime.now();
-    final currentTime = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}00';
+    final currentTime =
+        '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}00';
     return arrivalTime.compareTo(currentTime) > 0;
   }
 
@@ -159,11 +205,11 @@ class SubwayUtils {
   static int calculateMinutesUntilArrival(String arrivalTime) {
     final now = DateTime.now();
     final currentTime = now.hour * 60 + now.minute;
-    
+
     final arrivalHour = int.tryParse(arrivalTime.substring(0, 2)) ?? 0;
     final arrivalMinute = int.tryParse(arrivalTime.substring(2, 4)) ?? 0;
     final arrivalTimeInMinutes = arrivalHour * 60 + arrivalMinute;
-    
+
     final diff = arrivalTimeInMinutes - currentTime;
     return diff > 0 ? diff : 0;
   }
@@ -171,30 +217,30 @@ class SubwayUtils {
   /// 도착 예정 시간까지 남은 시간을 읽기 쉬운 형태로 포맷팅
   static String formatTimeUntilArrival(String arrivalTime) {
     final minutes = calculateMinutesUntilArrival(arrivalTime);
-    
+
     if (minutes <= 0) {
       return '';
     } else if (minutes < 60) {
-      return '${minutes}분 후';
+      return '$minutes분 후';
     } else {
       final hours = minutes ~/ 60;
       final remainingMinutes = minutes % 60;
-      return '${hours}시간 ${remainingMinutes}분 후';
+      return '$hours시간 $remainingMinutes분 후';
     }
   }
 
   /// 도착 상태 메시지 생성
   static String getArrivalStatusMessage(String arrivalTime) {
     final minutes = calculateMinutesUntilArrival(arrivalTime);
-    
+
     if (minutes <= 0) {
       return '출발';
     } else if (minutes <= 1) {
       return '잠시 후 도착';
     } else if (minutes <= 5) {
-      return '${minutes}분 후 도착';
+      return '$minutes분 후 도착';
     } else {
-      return '${minutes}분 후';
+      return '$minutes분 후';
     }
   }
 
@@ -227,8 +273,9 @@ class SubwayUtils {
     String Function(T) getTimeFunction,
   ) {
     final now = DateTime.now();
-    final currentTime = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}00';
-    
+    final currentTime =
+        '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}00';
+
     return schedules.where((schedule) {
       final time = getTimeFunction(schedule);
       return time.compareTo(currentTime) > 0;
@@ -251,7 +298,7 @@ class AppUtils {
   static String formatTimeDifference(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays}일 전';
     } else if (difference.inHours > 0) {
