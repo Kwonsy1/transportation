@@ -2,6 +2,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/station_group.dart';
 import '../models/hive/station_group_hive.dart';
 import '../utils/ksy_log.dart';
+import '../utils/station_utils.dart';
 
 /// Hive 기반 즐겨찾기 데이터 저장 서비스
 class HiveFavoritesStorageService {
@@ -184,7 +185,7 @@ class HiveFavoritesStorageService {
         return false;
       }
 
-      final cleanName = stationName.replaceAll('역', '').trim();
+      final cleanName = StationUtils.cleanForSearch(stationName);
       
       // 정확한 키 매칭 먼저 시도
       if (_favoritesBox!.containsKey(cleanName)) {

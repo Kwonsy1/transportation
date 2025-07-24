@@ -166,7 +166,7 @@ class _SeoulSubwayTestScreenState extends State<SeoulSubwayTestScreen> {
                                   ),
                                   child: Center(
                                     child: Text(
-                                      _getLineShortName(lineName),
+                                      SubwayUtils.getLineShortName(lineName),
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 12,
@@ -252,37 +252,6 @@ class _SeoulSubwayTestScreenState extends State<SeoulSubwayTestScreen> {
 
 
 
-  /// 노선 이름 축약
-  String _getLineShortName(String lineName) {
-    // 숫자가 있으면 숫자만 반환
-    final RegExp numberRegex = RegExp(r'(\d+)');
-    final match = numberRegex.firstMatch(lineName);
-    if (match != null) {
-      return match.group(1) ?? '';
-    }
-
-    // 특별한 경우들
-    final Map<String, String> specialLines = {
-      '경의중앙선': '경의',
-      '분당선': '분당',
-      '신분당선': '신분',
-      '경춘선': '경춘',
-      '수인분당선': '수인',
-      '우이신설선': '우이',
-      '서해선': '서해',
-      '김포골드라인': '김포',
-      '신림선': '신림',
-    };
-
-    for (final entry in specialLines.entries) {
-      if (lineName.contains(entry.key)) {
-        return entry.value;
-      }
-    }
-
-    // 기본적으로 첫 2글자
-    return lineName.length >= 2 ? lineName.substring(0, 2) : lineName;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -549,7 +518,7 @@ class _SeoulSubwayTestScreenState extends State<SeoulSubwayTestScreen> {
                               radius: 12,
                               backgroundColor: SubwayUtils.getLineColor(station.lineName),
                               child: Text(
-                                _getLineShortName(station.lineName),
+                                SubwayUtils.getLineShortName(station.lineName),
                                 style: const TextStyle(
                                   fontSize: 10,
                                   color: Colors.white,

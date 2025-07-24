@@ -1,8 +1,9 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import 'dart:math' as math;
 import '../models/hive/seoul_subway_station_hive.dart';
 import '../models/seoul_subway_station.dart';
 import '../utils/ksy_log.dart';
+import '../utils/location_utils.dart';
+import '../utils/station_utils.dart';
 
 /// Hive를 사용한 지하철역 정보 저장 서비스
 class HiveSubwayService {
@@ -186,14 +187,11 @@ class HiveSubwayService {
   List<SeoulSubwayStationHive> searchStations(String query) {
     try {
       final allStations = getAllStations();
-      return allStations.where((station) {
-        final stationName = station.stationName.toLowerCase();
-        final searchQuery = query.toLowerCase();
-        return stationName.contains(searchQuery) ||
-            stationName
-                .replaceAll('역', '')
-                .contains(searchQuery.replaceAll('역', ''));
-      }).toList();
+      return StationUtils.searchStations(
+        allStations,
+        query,
+        (station) => station.stationName,
+      );
     } catch (e) {
       KSYLog.error('❌ 역 검색 오류', e);
       return [];
@@ -214,7 +212,7 @@ class HiveSubwayService {
       final nearbyStations = <SeoulSubwayStationHive>[];
 
       for (final station in allStations) {
-        final distance = _calculateDistance(
+        final distance = LocationUtils.calculateDistanceKm(
           latitude,
           longitude,
           station.latitude,
@@ -228,13 +226,13 @@ class HiveSubwayService {
 
       // 거리순으로 정렬
       nearbyStations.sort((a, b) {
-        final distanceA = _calculateDistance(
+        final distanceA = LocationUtils.calculateDistanceKm(
           latitude,
           longitude,
           a.latitude,
           a.longitude,
         );
-        final distanceB = _calculateDistance(
+        final distanceB = LocationUtils.calculateDistanceKm(
           latitude,
           longitude,
           b.latitude,
@@ -273,32 +271,4 @@ class HiveSubwayService {
     }
   }
 
-  /// 두 지점 간의 거리 계산 (Haversine formula)
-  double _calculateDistance(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2,
-  ) {
-    const double earthRadius = 6371; // 지구 반지름 (km)
-
-    final double dLat = _toRadians(lat2 - lat1);
-    final double dLon = _toRadians(lon2 - lon1);
-
-    final double a =
-        math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(_toRadians(lat1)) *
-            math.cos(_toRadians(lat2)) *
-            math.sin(dLon / 2) *
-            math.sin(dLon / 2);
-
-    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-
-    return earthRadius * c;
-  }
-
-  /// 도를 라디안으로 변환
-  double _toRadians(double degrees) {
-    return degrees * (math.pi / 180);
-  }
 }

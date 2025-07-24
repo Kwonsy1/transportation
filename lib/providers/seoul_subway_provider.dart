@@ -7,6 +7,7 @@ import '../services/nominatim_geocoding_service.dart';
 export '../services/nominatim_geocoding_service.dart' show NominatimLocation;
 import '../services/hive_subway_service.dart';
 import '../utils/ksy_log.dart';
+import '../utils/station_utils.dart';
 
 /// 서울 지하철 역 정보를 관리하는 프로바이더
 class SeoulSubwayProvider extends ChangeNotifier {
@@ -102,7 +103,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
         existingStation = existingStations
             .where(
               (existing) =>
-                  _isSameStation(
+                  StationUtils.isSameStation(
                     existing.stationName,
                     newStation.stationName,
                   ) &&
@@ -114,7 +115,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
         try {
           existingStation = existingStations
               .where(
-                (existing) => _isSameStation(
+                (existing) => StationUtils.isSameStation(
                   existing.stationName,
                   newStation.stationName,
                 ),
@@ -240,9 +241,8 @@ class SeoulSubwayProvider extends ChangeNotifier {
           final stationName = station.stationName.toLowerCase();
           final searchQuery = query.toLowerCase();
           return stationName.contains(searchQuery) ||
-              stationName
-                  .replaceAll('역', '')
-                  .contains(searchQuery.replaceAll('역', ''));
+              StationUtils.cleanForSearch(stationName)
+                  .contains(StationUtils.cleanForSearch(searchQuery));
         }).toList();
       } else {
         // 로컬 데이터가 없으면 API 검색
@@ -467,12 +467,11 @@ class SeoulSubwayProvider extends ChangeNotifier {
 
   /// 특정 역명의 모든 호선 정보 반환
   List<SeoulSubwayStation> getStationsByName(String stationName) {
-    final normalizedSearchName = _normalizeStationName(stationName);
-
-    return _allStations.where((station) {
-      final normalizedStationName = _normalizeStationName(station.stationName);
-      return normalizedStationName == normalizedSearchName;
-    }).toList();
+    return StationUtils.findMatchingStations(
+      _allStations,
+      stationName,
+      (station) => station.stationName,
+    );
   }
 
   /// 모든 역을 SubwayStation 리스트로 변환
@@ -545,17 +544,6 @@ class SeoulSubwayProvider extends ChangeNotifier {
     }
   }
 
-  /// 역명 정규화 ("역" 제거 및 공백 정리)
-  String _normalizeStationName(String stationName) {
-    return stationName.replaceAll('역', '').replaceAll(' ', '').toLowerCase();
-  }
-
-  /// 두 역명이 같은 역인지 확인 (정규화 후 비교)
-  bool _isSameStation(String stationName1, String stationName2) {
-    final normalized1 = _normalizeStationName(stationName1);
-    final normalized2 = _normalizeStationName(stationName2);
-    return normalized1 == normalized2;
-  }
 
   /// 업데이트된 좌표를 서울 지하철 데이터에 반영
   Future<void> _updateSeoulStationsWithCoordinates(
@@ -571,7 +559,7 @@ class SeoulSubwayProvider extends ChangeNotifier {
       for (final updatedStation in updatedStations) {
         // 역명 정규화를 통한 매칭
         final index = _allStations.indexWhere(
-          (station) => _isSameStation(
+          (station) => StationUtils.isSameStation(
             station.stationName,
             updatedStation.subwayStationName,
           ),
@@ -627,11 +615,11 @@ class SeoulSubwayProvider extends ChangeNotifier {
                 .where(
                   (station) =>
                       station.stationName.contains(
-                        _normalizeStationName(updatedStation.subwayStationName),
+                        StationUtils.normalizeStationName(updatedStation.subwayStationName),
                       ) ||
-                      _normalizeStationName(
+                      StationUtils.normalizeStationName(
                         updatedStation.subwayStationName,
-                      ).contains(_normalizeStationName(station.stationName)),
+                      ).contains(StationUtils.normalizeStationName(station.stationName)),
                 )
                 .take(3)
                 .toList();
@@ -829,12 +817,12 @@ class SeoulSubwayProvider extends ChangeNotifier {
         try {
           final memoryStation = _allStations
               .where(
-                (s) => s.stationName.contains(stationName.replaceAll('역', '')),
+                (s) => s.stationName.contains(StationUtils.cleanForSearch(stationName)),
               )
               .first;
           final hiveStation = reloadedStations
               .where(
-                (s) => s.stationName.contains(stationName.replaceAll('역', '')),
+                (s) => s.stationName.contains(StationUtils.cleanForSearch(stationName)),
               )
               .first;
 

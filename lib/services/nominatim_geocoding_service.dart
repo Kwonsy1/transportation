@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import '../models/subway_station.dart';
 import '../utils/ksy_log.dart';
+import '../utils/station_utils.dart';
 
 /// OpenStreetMap Nominatim API를 사용한 좌표 검색 서비스
 ///
@@ -265,7 +266,7 @@ class NominatimGeocodingService {
   /// 역명과 정확히 일치하는지 확인
   bool _isExactStationMatch(NominatimLocation location, String stationName) {
     final displayName = location.displayName.toLowerCase();
-    final cleanStationName = stationName.toLowerCase().replaceAll('역', '');
+    final cleanStationName = StationUtils.cleanForSearch(stationName).toLowerCase();
 
     return displayName.contains('$cleanStationName station') ||
         displayName.contains('$cleanStationName subway') ||

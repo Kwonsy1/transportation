@@ -123,6 +123,42 @@ class SubwayUtils {
     return '1'; // 기본값
   }
 
+  /// 호선명을 축약된 형태로 변환 (지도 마커용)
+  /// 
+  /// 예: "1호선" → "1", "경의중앙선" → "경의", "신분당선" → "신분"
+  static String getLineShortName(String lineName) {
+    // 숫자가 있으면 숫자만 반환
+    final numberRegex = RegExp(r'(\d+)');
+    final match = numberRegex.firstMatch(lineName);
+    if (match != null) {
+      final number = match.group(1) ?? '';
+      // 한 자리 숫자만 표시 (예: 01 -> 1, 02 -> 2)
+      return int.tryParse(number)?.toString() ?? number;
+    }
+
+    // 특별한 노선들의 축약명
+    final Map<String, String> specialLines = {
+      '경의중앙선': '경의',
+      '분당선': '분당',
+      '신분당선': '신분',
+      '경춘선': '경춘',
+      '수인분당선': '수인',
+      '우이신설선': '우이',
+      '서해선': '서해',
+      '김포골드라인': '김포',
+      '신림선': '신림',
+    };
+
+    for (final entry in specialLines.entries) {
+      if (lineName.contains(entry.key)) {
+        return entry.value;
+      }
+    }
+
+    // 기본값: 앞 2글자
+    return lineName.length >= 2 ? lineName.substring(0, 2) : lineName;
+  }
+
   /// 노선명에서 호선 번호 추출
   static String extractLineNumberFromRouteName(String routeName) {
     final regex = RegExp(r'(\d+)호선');

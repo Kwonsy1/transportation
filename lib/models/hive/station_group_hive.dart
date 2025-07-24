@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 import '../station_group.dart';
 import '../subway_station.dart';
+import '../../utils/station_utils.dart';
 
 part 'station_group_hive.g.dart';
 
@@ -53,10 +54,7 @@ class StationGroupHive extends HiveObject {
 
   /// 깨끗한 역명 (번호 제거)
   String get cleanStationName {
-    return stationName
-        .replaceAll(RegExp(r'\d+호선'), '')
-        .replaceAll('역', '')
-        .trim();
+    return StationUtils.cleanStationName(stationName);
   }
 
   /// 포함된 호선 목록

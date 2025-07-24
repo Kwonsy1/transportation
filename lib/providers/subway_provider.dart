@@ -6,6 +6,7 @@ import '../models/station_group.dart';
 import '../services/subway_api_service.dart';
 import '../services/favorites_storage_service.dart';
 import '../utils/ksy_log.dart';
+import '../utils/station_utils.dart';
 
 /// 지하철 정보 상태 관리 Provider (국토교통부 API 기준)
 class SubwayProvider extends ChangeNotifier {
@@ -305,7 +306,7 @@ class SubwayProvider extends ChangeNotifier {
 
   /// 특정 역명이 즐겨찾기에 있는지 확인 (역명으로 검사)
   bool isFavoriteStationByName(String stationName) {
-    final cleanName = stationName.replaceAll('역', '').trim();
+    final cleanName = StationUtils.cleanStationName(stationName);
     return _favoriteStationGroups.any((g) => g.cleanStationName == cleanName);
   }
 
@@ -449,7 +450,7 @@ class SubwayProvider extends ChangeNotifier {
 
   /// 지도에서 역명으로 StationGroup 가져오기 (캐싱 활용)
   Future<StationGroup?> getStationGroupByName(String stationName) async {
-    final cleanName = _cleanStationName(stationName);
+    final cleanName = StationUtils.cleanStationName(stationName);
     KSYLog.debug('🗺️ 지도에서 역 검색: $stationName -> $cleanName');
 
     // 1. 캐시 확인
@@ -474,7 +475,7 @@ class SubwayProvider extends ChangeNotifier {
       // 3. 그룹화
       final groupedResults = StationGrouper.groupStations(searchResults);
       final matchingGroup = groupedResults.firstWhere(
-        (group) => _cleanStationName(group.stationName) == cleanName,
+        (group) => StationUtils.cleanStationName(group.stationName) == cleanName,
         orElse: () => groupedResults.first,
       );
 
@@ -492,15 +493,6 @@ class SubwayProvider extends ChangeNotifier {
     }
   }
 
-  /// 역명 정규화 (캐싱 키용)
-  String _cleanStationName(String stationName) {
-    return stationName
-        .replaceAll(RegExp(r'역$'), '') // 마지막 "역"만 제거
-        .replaceAll(RegExp(r'\(.*?\)'), '') // 괄호 제거
-        .replaceAll(RegExp(r'\d+호선'), '') // 호선 번호 제거
-        .trim()
-        .toLowerCase();
-  }
 
   /// 캐시 유효성 확인 (24시간)
   bool _isValidCache(String cleanName) {

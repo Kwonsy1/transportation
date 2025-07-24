@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'dart:async';
-import 'dart:math';
+import '../utils/location_utils.dart';
 import '../constants/app_constants.dart';
 import '../providers/location_provider.dart';
 import '../providers/seoul_subway_provider.dart';
@@ -185,7 +185,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
 
       // 지도 중심점으로부터 거리순으로 정렬
       final stationsWithDistance = stations.map((station) {
-        final distance = _calculateDistance(
+        final distance = LocationUtils.calculateDistanceM(
           center.latitude,
           center.longitude,
           station.latitude,
@@ -266,7 +266,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
           ),
           child: Center(
             child: Text(
-              _getLineShortName(station.lineName),
+              SubwayUtils.getLineShortName(station.lineName),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
@@ -461,7 +461,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
                   ),
                   child: Center(
                     child: Text(
-                      _getLineShortName(station.lineName),
+                      SubwayUtils.getLineShortName(station.lineName),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -694,25 +694,6 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
     }
   }
 
-  /// 두 지점 간의 거리 계산 (Haversine 공식)
-  double _calculateDistance(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2,
-  ) {
-    const double earthRadius = 6371000; // 지구 반지름 (미터)
-    final dLat = (lat2 - lat1) * (pi / 180);
-    final dLon = (lon2 - lon1) * (pi / 180);
-    final a =
-        sin(dLat / 2) * sin(dLat / 2) +
-        cos(lat1 * (pi / 180)) *
-            cos(lat2 * (pi / 180)) *
-            sin(dLon / 2) *
-            sin(dLon / 2);
-    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return earthRadius * c;
-  }
 
   /// 지도를 해당 역 중심으로 이동
   Future<void> _moveToStation(SeoulSubwayStation station) async {
@@ -736,36 +717,6 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
 
 
 
-  /// 노선 이름 축약
-  String _getLineShortName(String lineName) {
-    final numberRegex = RegExp(r'(\d+)');
-    final match = numberRegex.firstMatch(lineName);
-    if (match != null) {
-      final number = match.group(1) ?? '';
-      // 한 자리 숫자만 표시 (예: 01 -> 1, 02 -> 2)
-      return int.tryParse(number)?.toString() ?? number;
-    }
-
-    final Map<String, String> specialLines = {
-      '경의중앙선': '경의',
-      '분당선': '분당',
-      '신분당선': '신분',
-      '경춘선': '경춘',
-      '수인분당선': '수인',
-      '우이신설선': '우이',
-      '서해선': '서해',
-      '김포골드라인': '김포',
-      '신림선': '신림',
-    };
-
-    for (final entry in specialLines.entries) {
-      if (lineName.contains(entry.key)) {
-        return entry.value;
-      }
-    }
-
-    return lineName.length >= 2 ? lineName.substring(0, 2) : lineName;
-  }
 
   @override
   Widget build(BuildContext context) {
