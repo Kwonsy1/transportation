@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_constants.dart';
 import '../providers/seoul_subway_provider.dart';
 import '../models/seoul_subway_station.dart';
+import '../utils/app_utils.dart';
 
 /// 서울 지하철 API 테스트 화면
 class SeoulSubwayTestScreen extends StatefulWidget {
@@ -160,7 +161,7 @@ class _SeoulSubwayTestScreenState extends State<SeoulSubwayTestScreen> {
                                   width: 32,
                                   height: 32,
                                   decoration: BoxDecoration(
-                                    color: _getLineColor(lineName),
+                                    color: SubwayUtils.getLineColor(lineName),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Center(
@@ -249,40 +250,6 @@ class _SeoulSubwayTestScreenState extends State<SeoulSubwayTestScreen> {
     );
   }
 
-  /// 노선별 색상 반환
-  Color _getLineColor(String lineName) {
-    // 서울 지하철 노선별 대표 색상
-    final Map<String, Color> lineColors = {
-      '1호선': const Color(0xFF0052A4),
-      '2호선': const Color(0xFF00A84D),
-      '3호선': const Color(0xFFEF7C1C),
-      '4호선': const Color(0xFF00A5DE),
-      '5호선': const Color(0xFF996CAC),
-      '6호선': const Color(0xFFCD7C2F),
-      '7호선': const Color(0xFF747F00),
-      '8호선': const Color(0xFFE6186C),
-      '9호선': const Color(0xFFBB8336),
-      '경의중앙선': const Color(0xFF77C4A3),
-      '분당선': const Color(0xFFFFD320),
-      '신분당선': const Color(0xFFD31145),
-      '경춘선': const Color(0xFF178C72),
-      '수인분당선': const Color(0xFFFFD320),
-      '우이신설선': const Color(0xFFB7C452),
-      '서해선': const Color(0xFF81A914),
-      '김포골드라인': const Color(0xFFB69240),
-      '신림선': const Color(0xFF6789CA),
-    };
-
-    // 기본적으로 노선명에서 숫자만 추출해서 매칭 시도
-    for (final entry in lineColors.entries) {
-      if (lineName.contains(entry.key) || entry.key.contains(lineName)) {
-        return entry.value;
-      }
-    }
-
-    // 매칭되지 않으면 기본 색상
-    return Colors.grey[600] ?? Colors.grey;
-  }
 
   /// 노선 이름 축약
   String _getLineShortName(String lineName) {
@@ -579,7 +546,7 @@ class _SeoulSubwayTestScreenState extends State<SeoulSubwayTestScreen> {
                             dense: true,
                             leading: CircleAvatar(
                               radius: 12,
-                              backgroundColor: _getLineColor(station.lineName),
+                              backgroundColor: SubwayUtils.getLineColor(station.lineName),
                               child: Text(
                                 _getLineShortName(station.lineName),
                                 style: const TextStyle(

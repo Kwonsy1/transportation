@@ -13,6 +13,7 @@ import '../models/seoul_subway_station.dart';
 import '../models/station_group.dart';
 import 'multi_line_station_detail_screen.dart';
 import '../utils/ksy_log.dart';
+import '../utils/app_utils.dart';
 
 /// 네이버 지도 네이티브 화면 (동적 마커 로딩)
 class NaverNativeMapScreen extends StatefulWidget {
@@ -252,7 +253,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
           width: 30,
           height: 30,
           decoration: BoxDecoration(
-            color: _getLineColor(station.lineName),
+            color: SubwayUtils.getLineColor(station.lineName),
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2),
             boxShadow: const [
@@ -455,7 +456,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: _getLineColor(station.lineName),
+                    color: SubwayUtils.getLineColor(station.lineName),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Center(
@@ -733,37 +734,6 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
     }
   }
 
-  /// 노선별 색상
-  Color _getLineColor(String lineName) {
-    final Map<String, Color> lineColors = {
-      '1호선': const Color(0xFF0052A4),
-      '2호선': const Color(0xFF00A84D),
-      '3호선': const Color(0xFFEF7C1C),
-      '4호선': const Color(0xFF00A5DE),
-      '5호선': const Color(0xFF996CAC),
-      '6호선': const Color(0xFFCD7C2F),
-      '7호선': const Color(0xFF747F00),
-      '8호선': const Color(0xFFE6186C),
-      '9호선': const Color(0xFFBB8336),
-      '경의중앙선': const Color(0xFF77C4A3),
-      '분당선': const Color(0xFFFFD320),
-      '신분당선': const Color(0xFFD31145),
-      '경춘선': const Color(0xFF178C72),
-      '수인분당선': const Color(0xFFFFD320),
-      '우이신설선': const Color(0xFFB7C452),
-      '서해선': const Color(0xFF81A914),
-      '김포골드라인': const Color(0xFFB69240),
-      '신림선': const Color(0xFF6789CA),
-    };
-
-    for (final entry in lineColors.entries) {
-      if (lineName.contains(entry.key) || entry.key.contains(lineName)) {
-        return entry.value;
-      }
-    }
-
-    return Colors.grey[600] ?? Colors.grey;
-  }
 
   /// 노선 이름 축약
   String _getLineShortName(String lineName) {

@@ -4,9 +4,10 @@ import '../constants/api_constants.dart';
 
 /// 지하철 관련 유틸리티 함수들 (국토교통부 API 기준)
 class SubwayUtils {
-  /// 호선 번호로 색상 반환
+  /// 호선 번호/이름으로 색상 반환
   static Color getLineColor(String lineNumber) {
     switch (lineNumber) {
+      // 서울 지하철 1-9호선
       case '1':
         return AppColors.line1;
       case '2':
@@ -25,6 +26,36 @@ class SubwayUtils {
         return AppColors.line8;
       case '9':
         return AppColors.line9;
+      
+      // 광역철도 노선들
+      case '경의중앙':
+      case '경의중앙선':
+        return AppColors.gyeonguiJungang;
+      case '분당':
+      case '분당선':
+        return AppColors.bundang;
+      case '신분당':
+      case '신분당선':
+        return AppColors.sinbundang;
+      case '경춘':
+      case '경춘선':
+        return AppColors.gyeongchun;
+      case '수인분당':
+      case '수인분당선':
+        return AppColors.suinBundang;
+      case '우이신설':
+      case '우이신설선':
+        return AppColors.uiSinseol;
+      case '서해':
+      case '서해선':
+        return AppColors.seohae;
+      case '김포':
+      case '김포골드라인':
+        return AppColors.gimpo;
+      case '신림':
+      case '신림선':
+        return AppColors.sillim;
+      
       default:
         return AppColors.textSecondary;
     }

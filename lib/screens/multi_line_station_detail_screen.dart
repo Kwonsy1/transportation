@@ -7,6 +7,7 @@ import '../models/station_group.dart';
 import '../providers/subway_provider.dart';
 import '../providers/location_provider.dart';
 import '../utils/ksy_log.dart';
+import '../utils/app_utils.dart';
 
 /// 멀티 호선 지원 역 상세 정보 화면
 class MultiLineStationDetailScreen extends StatefulWidget {
@@ -76,29 +77,6 @@ class _MultiLineStationDetailScreenState
     }
   }
 
-  Color _getLineColor(String lineNumber) {
-    final colors = {
-      '1': const Color(0xFF263c96),
-      '2': const Color(0xFF00a650),
-      '3': const Color(0xFFef7c1c),
-      '4': const Color(0xFF00a4e3),
-      '5': const Color(0xFF996cac),
-      '6': const Color(0xFFcd7c2f),
-      '7': const Color(0xFF747f00),
-      '8': const Color(0xFFe6186c),
-      '9': const Color(0xFFbdb092),
-      '경의중앙': const Color(0xFF77C4A3),
-      '분당': const Color(0xFFFFD320),
-      '신분당': const Color(0xFFD31145),
-      '경춘': const Color(0xFF178C72),
-      '수인분당': const Color(0xFFFFD320),
-      '우이신설': const Color(0xFFB7C452),
-      '서해': const Color(0xFF81A914),
-      '김포': const Color(0xFFB69240),
-      '신림': const Color(0xFF6789CA),
-    };
-    return colors[lineNumber] ?? const Color(0xFF757575);
-  }
 
   /// 시간 포맷 헬퍼 (범위 체크 포함)
   String _formatTime(String timeString) {
@@ -202,7 +180,7 @@ class _MultiLineStationDetailScreenState
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: _getLineColor(_selectedStation.effectiveLineNumber),
+            color: SubwayUtils.getLineColor(_selectedStation.effectiveLineNumber),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -212,7 +190,7 @@ class _MultiLineStationDetailScreenState
                 width: 16,
                 height: 16,
                 decoration: BoxDecoration(
-                  color: _getLineColor(_selectedStation.effectiveLineNumber),
+                  color: SubwayUtils.getLineColor(_selectedStation.effectiveLineNumber),
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),
@@ -306,7 +284,7 @@ class _MultiLineStationDetailScreenState
               final isSelected =
                   _selectedStation.subwayStationId == station.subwayStationId;
               final lineNumber = station.effectiveLineNumber;
-              final lineColor = _getLineColor(lineNumber);
+              final lineColor = SubwayUtils.getLineColor(lineNumber);
 
               return GestureDetector(
                 onTap: () => _onLineSelected(station),

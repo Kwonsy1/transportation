@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
 import '../models/subway_schedule.dart';
+import '../utils/app_utils.dart';
 
 /// 시간표 정보를 표시하는 카드 위젯 (국토교통부 API 기준)
 class ScheduleCard extends StatelessWidget {
@@ -11,31 +12,6 @@ class ScheduleCard extends StatelessWidget {
     required this.schedule,
   });
 
-  /// 호선별 색상 반환
-  Color _getLineColor(String lineNumber) {
-    switch (lineNumber) {
-      case '1':
-        return AppColors.line1;
-      case '2':
-        return AppColors.line2;
-      case '3':
-        return AppColors.line3;
-      case '4':
-        return AppColors.line4;
-      case '5':
-        return AppColors.line5;
-      case '6':
-        return AppColors.line6;
-      case '7':
-        return AppColors.line7;
-      case '8':
-        return AppColors.line8;
-      case '9':
-        return AppColors.line9;
-      default:
-        return AppColors.textSecondary;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +23,7 @@ class ScheduleCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.medium),
           border: isUpcoming
-              ? Border.all(color: _getLineColor(schedule.lineNumber).withOpacity(0.3))
+              ? Border.all(color: SubwayUtils.getLineColor(schedule.lineNumber).withOpacity(0.3))
               : null,
         ),
         child: Padding(
@@ -59,7 +35,7 @@ class ScheduleCard extends StatelessWidget {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: _getLineColor(schedule.lineNumber),
+                  color: SubwayUtils.getLineColor(schedule.lineNumber),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -86,7 +62,7 @@ class ScheduleCard extends StatelessWidget {
                           schedule.simpleArrivalTime,
                           style: AppTextStyles.heading3.copyWith(
                             color: isUpcoming 
-                                ? _getLineColor(schedule.lineNumber)
+                                ? SubwayUtils.getLineColor(schedule.lineNumber)
                                 : AppColors.textSecondary,
                             fontWeight: FontWeight.bold,
                           ),
@@ -176,12 +152,12 @@ class ScheduleCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: _getLineColor(schedule.lineNumber).withOpacity(0.1),
+                    color: SubwayUtils.getLineColor(schedule.lineNumber).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.schedule,
-                    color: _getLineColor(schedule.lineNumber),
+                    color: SubwayUtils.getLineColor(schedule.lineNumber),
                     size: 20,
                   ),
                 )

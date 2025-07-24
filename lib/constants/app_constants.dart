@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// 앱에서 사용하는 색상 상수들
 class AppColors {
-  // 지하철 노선별 색상
+  // 지하철 노선별 색상 (서울 1-9호선)
   static const Color line1 = Color(0xFF263c96); // 1호선 - 진한 파랑
   static const Color line2 = Color(0xFF00a650); // 2호선 - 초록
   static const Color line3 = Color(0xFFef7c1c); // 3호선 - 주황
@@ -12,6 +12,17 @@ class AppColors {
   static const Color line7 = Color(0xFF747f00); // 7호선 - 올리브
   static const Color line8 = Color(0xFFe6186c); // 8호선 - 분홍
   static const Color line9 = Color(0xFFbdb092); // 9호선 - 베이지
+  
+  // 광역철도 노선별 색상
+  static const Color gyeonguiJungang = Color(0xFF77C4A3); // 경의중앙선
+  static const Color bundang = Color(0xFFFFD320); // 분당선
+  static const Color sinbundang = Color(0xFFD31145); // 신분당선
+  static const Color gyeongchun = Color(0xFF178C72); // 경춘선
+  static const Color suinBundang = Color(0xFFFFD320); // 수인분당선
+  static const Color uiSinseol = Color(0xFFB7C452); // 우이신설선
+  static const Color seohae = Color(0xFF81A914); // 서해선
+  static const Color gimpo = Color(0xFFB69240); // 김포골드라인
+  static const Color sillim = Color(0xFF6789CA); // 신림선
   
   // 기본 앱 색상
   static const Color primary = Color(0xFF2E7D32);

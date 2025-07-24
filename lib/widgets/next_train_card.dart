@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
 import '../models/next_train_info.dart';
+import '../utils/app_utils.dart';
 
 /// 다음 열차 정보를 표시하는 카드 위젯
 class NextTrainCard extends StatelessWidget {
@@ -11,31 +12,6 @@ class NextTrainCard extends StatelessWidget {
     required this.nextTrain,
   });
 
-  /// 호선별 색상 반환
-  Color _getLineColor(String lineNumber) {
-    switch (lineNumber) {
-      case '1':
-        return AppColors.line1;
-      case '2':
-        return AppColors.line2;
-      case '3':
-        return AppColors.line3;
-      case '4':
-        return AppColors.line4;
-      case '5':
-        return AppColors.line5;
-      case '6':
-        return AppColors.line6;
-      case '7':
-        return AppColors.line7;
-      case '8':
-        return AppColors.line8;
-      case '9':
-        return AppColors.line9;
-      default:
-        return AppColors.textSecondary;
-    }
-  }
 
   /// 도착 상태에 따른 색상 반환
   Color _getArrivalStatusColor() {
@@ -64,7 +40,7 @@ class NextTrainCard extends StatelessWidget {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: _getLineColor(nextTrain.lineNumber),
+                    color: SubwayUtils.getLineColor(nextTrain.lineNumber),
                     shape: BoxShape.circle,
                   ),
                   child: Center(

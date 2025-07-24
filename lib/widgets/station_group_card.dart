@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_constants.dart';
 import '../models/station_group.dart';
 import '../providers/subway_provider.dart';
+import '../utils/app_utils.dart';
 
 /// 역 그룹을 표시하는 카드 위젯
 class StationGroupCard extends StatelessWidget {
@@ -17,29 +18,6 @@ class StationGroupCard extends StatelessWidget {
     this.showFavoriteButton = false,
   });
 
-  Color _getLineColor(String lineNumber) {
-    final colors = {
-      '1': const Color(0xFF263c96),
-      '2': const Color(0xFF00a650),
-      '3': const Color(0xFFef7c1c),
-      '4': const Color(0xFF00a4e3),
-      '5': const Color(0xFF996cac),
-      '6': const Color(0xFFcd7c2f),
-      '7': const Color(0xFF747f00),
-      '8': const Color(0xFFe6186c),
-      '9': const Color(0xFFbdb092),
-      '경의중앙': const Color(0xFF77C4A3),
-      '분당': const Color(0xFFFFD320),
-      '신분당': const Color(0xFFD31145),
-      '경춘': const Color(0xFF178C72),
-      '수인분당': const Color(0xFFFFD320),
-      '우이신설': const Color(0xFFB7C452),
-      '서해': const Color(0xFF81A914),
-      '김포': const Color(0xFFB69240),
-      '신림': const Color(0xFF6789CA),
-    };
-    return colors[lineNumber] ?? const Color(0xFF757575);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +111,7 @@ class StationGroupCard extends StatelessWidget {
                 runSpacing: 6,
                 children: stationGroup.stations.map((station) {
                   final lineNumber = station.effectiveLineNumber;
-                  final lineColor = _getLineColor(lineNumber);
+                  final lineColor = SubwayUtils.getLineColor(lineNumber);
                   return Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,

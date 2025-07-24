@@ -4,6 +4,7 @@ import '../constants/app_constants.dart';
 import '../models/subway_station.dart';
 import '../providers/subway_provider.dart';
 import '../providers/location_provider.dart';
+import '../utils/app_utils.dart';
 
 /// 지하철역 정보를 표시하는 카드 위젯 (국토교통부 API 기준)
 class StationCard extends StatelessWidget {
@@ -20,30 +21,6 @@ class StationCard extends StatelessWidget {
     this.showDistance = false,
   });
 
-  /// 호선별 색상 반환
-  Color _getLineColor(String lineNumber) {
-    final colors = {
-      '1': AppColors.line1,
-      '2': AppColors.line2,
-      '3': AppColors.line3,
-      '4': AppColors.line4,
-      '5': AppColors.line5,
-      '6': AppColors.line6,
-      '7': AppColors.line7,
-      '8': AppColors.line8,
-      '9': AppColors.line9,
-      '경의중앙': const Color(0xFF77C4A3),
-      '분당': const Color(0xFFFFD320),
-      '신분당': const Color(0xFFD31145),
-      '경춘': const Color(0xFF178C72),
-      '수인분당': const Color(0xFFFFD320),
-      '우이신설': const Color(0xFFB7C452),
-      '서해': const Color(0xFF81A914),
-      '김포': const Color(0xFFB69240),
-      '신림': const Color(0xFF6789CA),
-    };
-    return colors[lineNumber] ?? AppColors.textSecondary;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +37,7 @@ class StationCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: _getLineColor(station.effectiveLineNumber),
+                  color: SubwayUtils.getLineColor(station.effectiveLineNumber),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -91,7 +68,7 @@ class StationCard extends StatelessWidget {
                     Text(
                       station.subwayRouteName,
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: _getLineColor(station.effectiveLineNumber),
+                        color: SubwayUtils.getLineColor(station.effectiveLineNumber),
                       ),
                     ),
                     
