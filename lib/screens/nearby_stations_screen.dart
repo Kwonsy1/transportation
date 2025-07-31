@@ -37,7 +37,7 @@ class _NearbyStationsScreenState extends State<NearbyStationsScreen> {
 
   void _onStationTap(SubwayStation station) {
     final stationGroup = StationGroup(
-      stationName: station.stationName,
+      stationName: station.subwayStationName,
       stations: [station],
     );
 
@@ -140,7 +140,7 @@ class _NearbyStationsScreenState extends State<NearbyStationsScreen> {
                     station: station,
                     onTap: () => _onStationTap(station),
                     showFavoriteButton: true,
-                    distance: station.dist,
+                    showDistance: true,
                   ),
                 );
               },

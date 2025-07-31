@@ -527,4 +527,58 @@ class SubwayProvider extends ChangeNotifier {
       'expired': _stationGroupCache.length - validCache,
     };
   }
+
+  /// subwayStationId를 사용한 상세 정보 조회 (지도 연동용)
+  ///
+  /// [subwayStationId] 국토교통부 API용 지하철역 ID
+  /// [stationName] 역명 (캐싱용)
+  Future<StationGroup?> getStationDetailsBySubwayStationId({
+    required String subwayStationId,
+    required String stationName,
+  }) async {
+    try {
+      KSYLog.info('🔍 subwayStationId로 상세 정보 조회: $subwayStationId ($stationName)');
+
+      // 1. 해당 subwayStationId로 시간표 조회 시도 (역 존재 여부 확인)
+      KSYLog.debug('🔍 시간표 조회 시도 - subwayStationId: $subwayStationId, dailyTypeCode: ${getCurrentDailyTypeCode()}');
+      
+      final schedules = await _apiService.getSchedules(
+        subwayStationId: subwayStationId,
+        dailyTypeCode: getCurrentDailyTypeCode(),
+        upDownTypeCode: 'U', // 상행으로 테스트
+        numOfRows: 1, // 최소한으로 조회
+      );
+      
+      KSYLog.debug('📊 시간표 조회 결과: ${schedules.length}개');
+
+      if (schedules.isNotEmpty) {
+        // 2. 성공하면 해당 subwayStationId를 가진 SubwayStation 생성
+        final station = SubwayStation(
+          subwayStationId: subwayStationId,
+          subwayStationName: stationName,
+          // 다른 정보는 나중에 API에서 가져올 수 있음
+        );
+
+        // 3. StationGroup 생성하여 반환
+        final stationGroup = StationGroup(
+          stationName: stationName,
+          stations: [station],
+        );
+
+        // 캐시에 저장
+        final cleanName = StationUtils.cleanStationName(stationName);
+        _stationGroupCache[cleanName] = stationGroup;
+        _cacheTimestamps[cleanName] = DateTime.now();
+
+        KSYLog.info('✅ subwayStationId 연동 성공: $subwayStationId');
+        return stationGroup;
+      } else {
+        KSYLog.warning('⚠️ subwayStationId로 시간표 조회 결과 없음: $subwayStationId');
+        return null;
+      }
+    } catch (e) {
+      KSYLog.error('❌ subwayStationId 상세 정보 조회 실패: $subwayStationId', e);
+      return null;
+    }
+  }
 }

@@ -12,7 +12,7 @@ class SubwayApiService {
 
   /// 키워드기반 지하철역 목록 조회
   ///
-  /// [stationName] 지하철역명 (예: '서울역')
+  /// [stationName] 지하철역명 (예: '서울역')  
   /// [numOfRows] 한 페이지 결과 수 (기본값: 100)
   /// [pageNo] 페이지 번호 (기본값: 1)
   Future<List<SubwayStation>> searchStations({
@@ -23,14 +23,14 @@ class SubwayApiService {
     try {
       final queryParams = {
         'serviceKey': ApiConstants.subwayApiKey,
-        'numOfRows': numOfRows.toString(),
-        'pageNo': pageNo.toString(),
-        '_type': 'json',
+        'numOfRows': numOfRows,
+        'pageNo': pageNo,
         'subwayStationName': stationName,
+        '_type': 'json',
       };
 
       final response = await _httpService.get(
-        '${ApiConstants.subwayApiBaseUrl}${ApiConstants.stationSearchEndpoint}',
+        ApiConstants.stationSearchEndpoint,
         queryParameters: queryParams,
       );
 
@@ -42,13 +42,56 @@ class SubwayApiService {
         }
 
         return apiResponse.items
-            .map((item) => SubwayStation.fromJson(item))
+            .map((item) => SubwayStation.fromGovApiJson(item))
             .toList();
       }
 
       return [];
     } catch (e) {
       KSYLog.error('지하철역 검색 오류: $e');
+      rethrow;
+    }
+  }
+
+  /// 좌표 기반 지하철역 목록 조회 (공공데이터포털 API)
+  ///
+  /// [tmX] TM 좌표 X (경도 변환)
+  /// [tmY] TM 좌표 Y (위도 변환) 
+  /// [radius] 검색 반경 (미터)
+  Future<List<SubwayStation>> searchStationsByCoordinate({
+    required double tmX,
+    required double tmY,
+    int radius = 5000,
+  }) async {
+    try {
+      final queryParams = {
+        'serviceKey': ApiConstants.subwayApiKey,
+        'tmX': tmX,
+        'tmY': tmY,
+        'radius': radius,
+        '_type': 'json',
+      };
+
+      final response = await _httpService.get(
+        ApiConstants.stationSearchEndpoint,
+        queryParameters: queryParams,
+      );
+
+      if (response.data != null) {
+        final apiResponse = SubwayApiResponse.fromJson(response.data);
+
+        if (!apiResponse.isSuccess) {
+          throw Exception(apiResponse.errorMessage ?? '지하철역 검색에 실패했습니다.');
+        }
+
+        return apiResponse.items
+            .map((item) => SubwayStation.fromGovApiJson(item))
+            .toList();
+      }
+
+      return [];
+    } catch (e) {
+      KSYLog.error('좌표 기반 지하철역 검색 오류: $e');
       rethrow;
     }
   }
@@ -70,16 +113,16 @@ class SubwayApiService {
     try {
       final queryParams = {
         'serviceKey': ApiConstants.subwayApiKey,
-        'numOfRows': numOfRows.toString(),
-        'pageNo': pageNo.toString(),
-        '_type': 'json',
+        'numOfRows': numOfRows,
+        'pageNo': pageNo,
         'subwayStationId': subwayStationId,
         'dailyTypeCode': dailyTypeCode,
         'upDownTypeCode': upDownTypeCode,
+        '_type': 'json',
       };
 
       final response = await _httpService.get(
-        '${ApiConstants.subwayApiBaseUrl}${ApiConstants.scheduleEndpoint}',
+        ApiConstants.scheduleEndpoint,
         queryParameters: queryParams,
       );
 
@@ -177,14 +220,14 @@ class SubwayApiService {
     try {
       final queryParams = {
         'serviceKey': ApiConstants.subwayApiKey,
-        'numOfRows': numOfRows.toString(),
-        'pageNo': pageNo.toString(),
-        '_type': 'json',
+        'numOfRows': numOfRows,
+        'pageNo': pageNo,
         'subwayStationId': subwayStationId,
+        '_type': 'json',
       };
 
       final response = await _httpService.get(
-        '${ApiConstants.subwayApiBaseUrl}${ApiConstants.exitBusRouteEndpoint}',
+        ApiConstants.exitBusRouteEndpoint,
         queryParameters: queryParams,
       );
 
@@ -227,14 +270,14 @@ class SubwayApiService {
     try {
       final queryParams = {
         'serviceKey': ApiConstants.subwayApiKey,
-        'numOfRows': numOfRows.toString(),
-        'pageNo': pageNo.toString(),
-        '_type': 'json',
+        'numOfRows': numOfRows,
+        'pageNo': pageNo,
         'subwayStationId': subwayStationId,
+        '_type': 'json',
       };
 
       final response = await _httpService.get(
-        '${ApiConstants.subwayApiBaseUrl}${ApiConstants.exitFacilityEndpoint}',
+        ApiConstants.exitFacilityEndpoint,
         queryParameters: queryParams,
       );
 

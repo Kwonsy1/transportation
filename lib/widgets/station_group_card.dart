@@ -75,26 +75,30 @@ class StationGroupCard extends StatelessWidget {
                               await provider.removeFavoriteStationGroup(
                                 stationGroup,
                               );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    '${stationGroup.cleanStationName}역을 즐겨찾기에서 제거했습니다',
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '${stationGroup.cleanStationName}역을 즐겨찾기에서 제거했습니다',
+                                    ),
+                                    duration: const Duration(seconds: 2),
                                   ),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
+                                );
+                              }
                             } else {
                               await provider.addFavoriteStationGroup(
                                 stationGroup,
                               );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    '${stationGroup.cleanStationName}역을 즐겨찾기에 추가했습니다',
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '${stationGroup.cleanStationName}역을 즐겨찾기에 추가했습니다',
+                                    ),
+                                    duration: const Duration(seconds: 2),
                                   ),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
+                                );
+                              }
                             }
                           },
                         );
@@ -145,7 +149,7 @@ class StationGroupCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          station.subwayRouteName
+                          (station.subwayRouteName ?? '')
                               .replaceAll('서울 ', '')
                               .replaceAll('호선', ''),
                           style: const TextStyle(

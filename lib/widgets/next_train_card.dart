@@ -109,10 +109,10 @@ class NextTrainCard extends StatelessWidget {
                     vertical: AppSpacing.sm,
                   ),
                   decoration: BoxDecoration(
-                    color: _getArrivalStatusColor().withOpacity(0.1),
+                    color: _getArrivalStatusColor().withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppRadius.medium),
                     border: Border.all(
-                      color: _getArrivalStatusColor().withOpacity(0.3),
+                      color: _getArrivalStatusColor().withValues(alpha: 0.3),
                     ),
                   ),
                   child: Column(

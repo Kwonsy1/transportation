@@ -23,7 +23,7 @@ class ScheduleCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.medium),
           border: isUpcoming
-              ? Border.all(color: SubwayUtils.getLineColor(schedule.lineNumber).withOpacity(0.3))
+              ? Border.all(color: SubwayUtils.getLineColor(schedule.lineNumber).withValues(alpha: 0.3))
               : null,
         ),
         child: Padding(
@@ -88,7 +88,7 @@ class ScheduleCard extends StatelessWidget {
                               vertical: AppSpacing.xs,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.accent.withOpacity(0.1),
+                              color: AppColors.accent.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(AppRadius.small),
                             ),
                             child: Text(
@@ -152,7 +152,7 @@ class ScheduleCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: SubwayUtils.getLineColor(schedule.lineNumber).withOpacity(0.1),
+                    color: SubwayUtils.getLineColor(schedule.lineNumber).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(

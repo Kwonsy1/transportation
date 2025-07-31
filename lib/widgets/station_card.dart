@@ -66,7 +66,7 @@ class StationCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      station.subwayRouteName,
+                      station.subwayRouteName ?? '',
                       style: AppTextStyles.bodySmall.copyWith(
                         color: SubwayUtils.getLineColor(station.effectiveLineNumber),
                       ),

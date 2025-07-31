@@ -31,9 +31,6 @@ class HiveFavoritesStorageService {
       if (!Hive.isAdapterRegistered(1)) {
         Hive.registerAdapter(StationGroupHiveAdapter());
       }
-      if (!Hive.isAdapterRegistered(2)) {
-        Hive.registerAdapter(SubwayStationHiveAdapter());
-      }
       
       // Box 열기
       _favoritesBox = await Hive.openBox<StationGroupHive>(_favoritesBoxName);

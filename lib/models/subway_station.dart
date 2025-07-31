@@ -3,7 +3,7 @@ import '../utils/ksy_log.dart';
 
 part 'subway_station.g.dart';
 
-/// 지하철 역 정보 모델 (국토교통부 API 기준)
+/// 지하철 역 정보 모델
 @JsonSerializable()
 class SubwayStation {
   /// 지하철역 ID (예: MTRS11133)
@@ -18,16 +18,16 @@ class SubwayStation {
   /// 호선 번호 (예: "1", "2", "경의중앙")
   final String? lineNumber;
 
-  /// 위도 (API에서 제공하지 않으므로 옵션)
+  /// 위도
   final double? latitude;
 
-  /// 경도 (API에서 제공하지 않으므로 옵션)
+  /// 경도
   final double? longitude;
 
   /// 현재 위치로부터의 거리 (미터)
   final double? dist;
 
-  const SubwayStation({
+  SubwayStation({
     required this.subwayStationId,
     required this.subwayStationName,
     this.subwayRouteName,
@@ -37,56 +37,100 @@ class SubwayStation {
     this.dist,
   });
 
-  // Factory constructor for the new API response
-  factory SubwayStation.fromJson(Map<String, dynamic> json) {
+  /// 안전한 double 파싱 헬퍼 함수
+  static double _safeParseDouble(dynamic value, [double defaultValue = 0.0]) {
+    if (value == null) return defaultValue;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? defaultValue;
+    return defaultValue;
+  }
+
+  // Factory constructor for the nearby API response (kkssyy.ipdisk.co.kr)
+  factory SubwayStation.fromNearbyApiJson(Map<String, dynamic> json) {
+    // 좌표 정보 추출
+    final coordinates = json['coordinates'] as Map<String, dynamic>?;
+    final latitude = coordinates?['latitude'] as double?;
+    final longitude = coordinates?['longitude'] as double?;
+    
+    // subwayStationId 추출 디버깅
+    final subwayStationId = json['subway_station_id']?.toString() ?? json['station_code']?.toString() ?? json['id']?.toString() ?? '';
+    KSYLog.debug('🆔 SubwayStation.fromNearbyApiJson - name: ${json['name']}, subway_station_id: ${json['subway_station_id']}, station_code: ${json['station_code']}, id: ${json['id']}, final: $subwayStationId');
+    
     return SubwayStation(
-      subwayStationId: json['stationId'] as String,
-      subwayStationName: json['stationName'] as String,
-      latitude: json['tmY'] as double?,
-      longitude: json['tmX'] as double?,
-      dist: json['dist'] as double?,
+      subwayStationId: subwayStationId,
+      subwayStationName: json['name'] as String? ?? '',
+      subwayRouteName: json['line_number'] as String?,
+      lineNumber: json['line_number'] as String?,
+      latitude: latitude,
+      longitude: longitude,
+      dist: json['distance_km'] as double?,
     );
   }
 
-  // Existing fromJson, renamed to be specific
-  factory SubwayStation.fromJsonWithRoute(Map<String, dynamic> json) => _$SubwayStationFromJson(json);
+  // Factory constructor for the government API response (국토교통부 API)
+  factory SubwayStation.fromGovApiJson(Map<String, dynamic> json) {
+    return SubwayStation(
+      subwayStationId: json['STATION_CD']?.toString() ?? '',
+      subwayStationName: json['STATION_NM']?.toString() ?? '',
+      subwayRouteName: json['LINE_NUM']?.toString(),
+      lineNumber: json['LINE_NUM']?.toString(), // LINE_NUM을 lineNumber로도 사용
+      latitude: SubwayStation._safeParseDouble(json['YCOORD']), // YCOORD가 위도
+      longitude: SubwayStation._safeParseDouble(json['XCOORD']), // XCOORD가 경도
+      dist: null, // 국토교통부 API에는 dist 필드가 없을 수 있음
+    );
+  }
 
   Map<String, dynamic> toJson() => _$SubwayStationToJson(this);
 
   /// 호선 번호 (필드가 있으면 사용, 없으면 노선명에서 추출)
   String get effectiveLineNumber {
+    // lineNumber 필드가 있으면 우선 사용
     if (lineNumber != null && lineNumber!.isNotEmpty) {
       return lineNumber!;
     }
-    
-    if (subwayRouteName == null) return '1';
-    // 노선명에서 추출
+
+    // subwayRouteName이 null이거나 비어있으면 기본값 반환
+    if (subwayRouteName == null || subwayRouteName!.isEmpty) {
+      return '정보없음'; // 또는 '1' 등 적절한 기본값
+    }
+
+    // 숫자 + '호선' 형식 추출 (예: '2호선' -> '2')
     final numberRegex = RegExp(r'(\d+)호선');
     final numberMatch = numberRegex.firstMatch(subwayRouteName!);
     if (numberMatch != null) {
       return numberMatch.group(1)!;
     }
-    
-    // 특수 호선 처리
+
+    // '선'으로 끝나는 호선 처리 (예: '신분당선' -> '신분당')
+    final lineSuffixRegex = RegExp(r'(.*)선$');
+    final lineSuffixMatch = lineSuffixRegex.firstMatch(subwayRouteName!);
+    if (lineSuffixMatch != null) {
+      return lineSuffixMatch.group(1)!;
+    }
+
+    // 기타 특수 호선 처리 (정확한 이름 매칭)
     final specialLines = {
-      '경의중앙': '경의중앙',
-      '분당': '분당',
-      '신분당': '신분당', 
-      '경춘': '경춘',
-      '수인분당': '수인분당',
-      '우이신설': '우이신설',
-      '서해': '서해',
-      '김포': '김포',
-      '신림': '신림',
+      '경의중앙선': '경의중앙',
+      '분당선': '분당',
+      '신분당선': '신분당',
+      '경춘선': '경춘',
+      '수인분당선': '수인분당',
+      '우이신설선': '우이신설',
+      '서해선': '서해',
+      '김포골드라인': '김포',
+      '신림선': '신림',
+      // 필요한 경우 다른 특수 호선 추가
     };
-    
+
     for (final entry in specialLines.entries) {
-      if (subwayRouteName!.contains(entry.key)) {
+      if (subwayRouteName! == entry.key) { // 정확히 일치하는 경우
         return entry.value;
       }
     }
-    
-    return '1'; // 기본값
+
+    // 위 규칙에 해당하지 않는 경우, 원본 노선명 반환
+    return subwayRouteName!;
   }
 
   /// 단순화된 역명 (역 이름만)

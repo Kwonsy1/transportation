@@ -2,6 +2,7 @@ import 'package:hive/hive.dart';
 import '../station_group.dart';
 import '../subway_station.dart';
 import '../../utils/station_utils.dart';
+import 'seoul_subway_station_hive.dart';
 
 part 'station_group_hive.g.dart';
 
@@ -12,7 +13,7 @@ class StationGroupHive extends HiveObject {
   final String stationName;
 
   @HiveField(1)
-  final List<SubwayStationHive> stations;
+  final List<SeoulSubwayStationHive> stations;
 
   @HiveField(2)
   final double? latitude;
@@ -36,9 +37,22 @@ class StationGroupHive extends HiveObject {
     return StationGroupHive(
       stationName: group.stationName,
       stations: group.stations.map((station) => 
-          SubwayStationHive.fromSubwayStation(station)).toList(),
+          _subwayStationToSeoulSubwayStationHive(station)).toList(),
       latitude: group.latitude,
       longitude: group.longitude,
+    );
+  }
+
+  /// SubwayStation을 SeoulSubwayStationHive로 변환하는 헬퍼 메서드
+  static SeoulSubwayStationHive _subwayStationToSeoulSubwayStationHive(SubwayStation station) {
+    return SeoulSubwayStationHive(
+      stationName: station.subwayStationName,
+      lineName: station.subwayRouteName ?? '',
+      latitude: station.latitude ?? 0.0,
+      longitude: station.longitude ?? 0.0,
+      stationCode: station.subwayStationId,
+      lastUpdated: DateTime.now(),
+      hasValidCoordinates: station.latitude != null && station.longitude != null,
     );
   }
 
@@ -46,9 +60,20 @@ class StationGroupHive extends HiveObject {
   StationGroup toStationGroup() {
     return StationGroup(
       stationName: stationName,
-      stations: stations.map((station) => station.toSubwayStation()).toList(),
+      stations: stations.map((station) => _seoulSubwayStationHiveToSubwayStation(station)).toList(),
       latitude: latitude,
       longitude: longitude,
+    );
+  }
+
+  /// SeoulSubwayStationHive를 SubwayStation으로 변환하는 헬퍼 메서드
+  static SubwayStation _seoulSubwayStationHiveToSubwayStation(SeoulSubwayStationHive station) {
+    return SubwayStation(
+      subwayStationId: station.stationCode ?? '',
+      subwayStationName: station.stationName,
+      subwayRouteName: station.lineName.isEmpty ? null : station.lineName,
+      latitude: station.latitude == 0.0 ? null : station.latitude,
+      longitude: station.longitude == 0.0 ? null : station.longitude,
     );
   }
 
@@ -59,12 +84,16 @@ class StationGroupHive extends HiveObject {
 
   /// 포함된 호선 목록
   List<String> get availableLines {
-    return stations.map((station) => station.subwayRouteName).toSet().toList()
+    return stations
+        .map((station) => station.lineName)
+        .where((routeName) => routeName.isNotEmpty)
+        .toSet()
+        .toList()
       ..sort();
   }
 
   /// 대표 역 (첫 번째 역)
-  SubwayStationHive get representativeStation => stations.first;
+  SeoulSubwayStationHive get representativeStation => stations.first;
 
   @override
   String toString() {
@@ -72,62 +101,3 @@ class StationGroupHive extends HiveObject {
   }
 }
 
-/// Hive용 SubwayStation 모델
-@HiveType(typeId: 2)
-class SubwayStationHive extends HiveObject {
-  @HiveField(0)
-  final String subwayStationId;
-
-  @HiveField(1)
-  final String subwayStationName;
-
-  @HiveField(2)
-  final String subwayRouteName;
-
-  @HiveField(3)
-  final double? latitude;
-
-  @HiveField(4)
-  final double? longitude;
-
-  @HiveField(5)
-  final String? lineNumber;
-
-  SubwayStationHive({
-    required this.subwayStationId,
-    required this.subwayStationName,
-    required this.subwayRouteName,
-    this.latitude,
-    this.longitude,
-    this.lineNumber,
-  });
-
-  /// SubwayStation에서 변환
-  factory SubwayStationHive.fromSubwayStation(SubwayStation station) {
-    return SubwayStationHive(
-      subwayStationId: station.subwayStationId,
-      subwayStationName: station.subwayStationName,
-      subwayRouteName: station.subwayRouteName,
-      latitude: station.latitude,
-      longitude: station.longitude,
-      lineNumber: station.lineNumber, // getter 사용
-    );
-  }
-
-  /// SubwayStation으로 변환
-  SubwayStation toSubwayStation() {
-    return SubwayStation(
-      subwayStationId: subwayStationId,
-      subwayStationName: subwayStationName,
-      subwayRouteName: subwayRouteName,
-      latitude: latitude,
-      longitude: longitude,
-      // lineNumber는 getter이므로 생성자에서 제외
-    );
-  }
-
-  @override
-  String toString() {
-    return 'SubwayStationHive(name: $subwayStationName, line: $subwayRouteName)';
-  }
-}

@@ -6,10 +6,20 @@ import '../utils/ksy_log.dart';
 class HttpService {
   static HttpService? _instance;
   late Dio _dio;
+  late Dio _nearbyApiDio;
 
   HttpService._internal() {
-    _dio = Dio();
-    _setupInterceptors();
+    // 기본 Dio (국토교통부 API용)
+    _dio = Dio(BaseOptions(
+      baseUrl: ApiConstants.subwayApiBaseUrl,
+    ));
+    _setupInterceptors(_dio);
+
+    // 근처 역 검색 API용 Dio
+    _nearbyApiDio = Dio(BaseOptions(
+      baseUrl: ApiConstants.nearbyApiBaseUrl,
+    ));
+    _setupInterceptors(_nearbyApiDio);
   }
 
   static HttpService get instance {
@@ -18,18 +28,19 @@ class HttpService {
   }
 
   Dio get dio => _dio;
+  Dio get nearbyApiDio => _nearbyApiDio;
 
   /// Dio 인터셉터 설정
-  void _setupInterceptors() {
-    _dio.options.connectTimeout = Duration(
+  void _setupInterceptors(Dio dioInstance) {
+    dioInstance.options.connectTimeout = Duration(
       seconds: ApiConstants.connectTimeoutSeconds,
     );
-    _dio.options.receiveTimeout = Duration(
+    dioInstance.options.receiveTimeout = Duration(
       seconds: ApiConstants.receiveTimeoutSeconds,
     );
 
     // 요청/응답 로깅 인터셉터 (디버그 모드에서만)
-    _dio.interceptors.add(
+    dioInstance.interceptors.add(
       LogInterceptor(
         requestBody: true,
         responseBody: true,
@@ -40,7 +51,7 @@ class HttpService {
     );
 
     // 에러 처리 인터셉터
-    _dio.interceptors.add(
+    dioInstance.interceptors.add(
       InterceptorsWrapper(
         onError: (error, handler) {
           // 여기서 공통 에러 처리 로직을 추가할 수 있습니다
@@ -79,6 +90,23 @@ class HttpService {
       return await _dio.post<T>(
         path,
         data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  /// 근처 역 검색 API용 GET 요청
+  Future<Response<T>> getNearbyApi<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      return await _nearbyApiDio.get<T>(
+        path,
         queryParameters: queryParameters,
         options: options,
       );

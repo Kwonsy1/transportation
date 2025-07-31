@@ -211,7 +211,7 @@ class _MultiLineStationDetailScreenState
               ),
               const SizedBox(width: 8),
               Text(
-                _selectedStation.subwayRouteName,
+                _selectedStation.subwayRouteName ?? '',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
@@ -255,7 +255,7 @@ class _MultiLineStationDetailScreenState
       decoration: BoxDecoration(
         color: Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withOpacity(0.2)),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,7 +300,7 @@ class _MultiLineStationDetailScreenState
                     boxShadow: isSelected
                         ? [
                             BoxShadow(
-                              color: lineColor.withOpacity(0.3),
+                              color: lineColor.withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -332,7 +332,7 @@ class _MultiLineStationDetailScreenState
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        station.subwayRouteName
+                        (station.subwayRouteName ?? '')
                             .replaceAll('서울 ', '')
                             .replaceAll('호선', ''),
                         style: TextStyle(

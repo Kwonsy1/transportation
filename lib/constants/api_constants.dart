@@ -1,22 +1,22 @@
 /// API 관련 상수들
 class ApiConstants {
-  // 국토교통부 지하철정보 API
-  static const String subwayApiBaseUrl =
-      'http://apis.data.go.kr/1613000/SubwayInfoService';
+  // 커스텀 근처 역 검색 API (kkssyy 서버)
+  static const String nearbyApiBaseUrl = 'http://kkssyy.ipdisk.co.kr:5300';
+  
+  // 국토교통부 지하철정보 API (공공데이터포털)
+  static const String subwayApiBaseUrl = 'http://apis.data.go.kr/1613000/SubwayInfoService';
   static const String subwayApiKey =
-      'S3yWGX867tZnGBrWmPRoe7+rNbC2n+F67QbwBT7TuzxgcncgkUd1rPjlLwnlkWG092G0eb5LtgSlKYgKTKUFIQ=='; // 실제 API 키로 교체 필요
+      '0cBM8RCAiOxxIyQbKRTdya4Z5LZzmDImKCctKA18eaK3EgZqZXm6kuSWKLkBha49jhqB+/qkhBjt5G6X1A/XjA=='; // 실제 API 키
 
   // 네이버 지도 API
   static const String naverMapClientId = 'jpj5i2bvdl'; // 실제 클라이언트 ID로 교체 완료
   static const String naverMapClientSecret =
       'N4mEolnK5KGBQvcQDWqFzofQsp82uk7hLP36uZPQ'; // 실제 클라이언트 시크릿으로 교체 완료
 
-  // 지하철정보 API 엔드포인트
+  // 지하철정보 API 엔드포인트 (국토교통부 표준)
   static const String stationSearchEndpoint = '/getKwrdFndSubwaySttnList';
-  static const String exitBusRouteEndpoint =
-      '/getSubwaySttnExitAcctoBusRouteList';
-  static const String exitFacilityEndpoint =
-      '/getSubwaySttnExitAcctoCfrFcltyList';
+  static const String exitBusRouteEndpoint = '/getSubwaySttnExitAcctoBusRouteList';
+  static const String exitFacilityEndpoint = '/getSubwaySttnExitAcctoCfrFcltyList';
   static const String scheduleEndpoint = '/getSubwaySttnAcctoSchdulList';
 
   // 요일 구분 코드

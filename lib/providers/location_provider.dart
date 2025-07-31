@@ -65,7 +65,7 @@ class LocationProvider extends ChangeNotifier {
   }
 
   /// 주변 역 목록 불러오기
-  Future<void> loadNearbyStations({int radius = 1000}) async {
+  Future<void> loadNearbyStations({int limit = 100}) async {
     if (_currentPosition == null) {
       await getCurrentLocation();
     }
@@ -82,9 +82,9 @@ class LocationProvider extends ChangeNotifier {
 
     try {
       _nearbyStations = await _nearbyStationApiService.getNearbyStations(
-        tmX: _currentPosition!.longitude, // Note: These are not TM coordinates
-        tmY: _currentPosition!.latitude,
-        radius: radius,
+        latitude: _currentPosition!.latitude,
+        longitude: _currentPosition!.longitude,
+        limit: limit,
       );
     } catch (e) {
       _errorMessage = '주변 역 정보를 불러오는데 실패했습니다: ${e.toString()}';
@@ -103,6 +103,34 @@ class LocationProvider extends ChangeNotifier {
   /// 앱 설정으로 이동
   Future<void> openAppSettings() async {
     await _locationService.openAppSettings();
+  }
+
+  /// 두 지점 간 거리 계산 (실제 좌표 기반)
+  double? calculateDistanceToStation(SubwayStation station) {
+    // 현재 위치가 없으면 null 반환
+    if (_currentPosition == null) return null;
+
+    // 역에 좌표 정보가 있는 경우 실제 거리 계산
+    if (station.latitude != null && station.longitude != null) {
+      return _locationService.calculateDistance(
+        startLatitude: _currentPosition!.latitude,
+        startLongitude: _currentPosition!.longitude,
+        endLatitude: station.latitude!,
+        endLongitude: station.longitude!,
+      );
+    }
+
+    // 좌표 정보가 없는 경우 null 반환
+    return null;
+  }
+
+  /// 거리를 읽기 쉬운 형태로 포맷팅
+  String formatDistance(double distanceInMeters) {
+    if (distanceInMeters < 1000) {
+      return '${distanceInMeters.round()}m';
+    } else {
+      return '${(distanceInMeters / 1000).toStringAsFixed(1)}km';
+    }
   }
 
   void clearError() {

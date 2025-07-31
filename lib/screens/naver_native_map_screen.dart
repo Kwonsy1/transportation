@@ -3,10 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'dart:async';
+import '../services/nearby_station_api_service.dart';
 import '../utils/location_utils.dart';
 import '../constants/app_constants.dart';
 import '../providers/location_provider.dart';
-import '../providers/seoul_subway_provider.dart';
 import '../providers/subway_provider.dart';
 import '../models/subway_station.dart';
 import '../models/seoul_subway_station.dart';
@@ -15,7 +15,7 @@ import 'multi_line_station_detail_screen.dart';
 import '../utils/ksy_log.dart';
 import '../utils/app_utils.dart';
 
-/// 네이버 지도 네이티브 화면 (동적 마커 로딩)
+/// 네이버 지도 네이티브 화면 (API 연동 마커 로딩)
 class NaverNativeMapScreen extends StatefulWidget {
   const NaverNativeMapScreen({super.key});
 
@@ -33,55 +33,25 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
   // 현재 지도 상태
   NCameraPosition? _currentCameraPosition;
 
+  // API 서비스
+  final NearbyStationApiService _nearbyApiService = NearbyStationApiService();
+
   // 디바운스 타이머
   Timer? _debounceTimer;
 
   @override
   void initState() {
     super.initState();
-    KSYLog.lifecycle('🗺️ 네이티브 지도 화면 시작');
-
-    // LocationProvider 변경 리스너
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final locationProvider = context.read<LocationProvider>();
-      final seoulSubwayProvider = context.read<SeoulSubwayProvider>();
-
-      // LocationProvider에 SeoulSubwayProvider 설정
-      locationProvider.setSeoulSubwayProvider(seoulSubwayProvider);
-
-      // 데이터 초기화
-      _initializeData();
-    });
+    KSYLog.lifecycle('🗺️ 네이티브 지도 화면 시작 (API 연동)');
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
     _mapController?.dispose();
+    _stationMarkers.clear();
+    _currentLocationMarker = null;
     super.dispose();
-  }
-
-  /// 데이터 초기화
-  Future<void> _initializeData() async {
-    final seoulSubwayProvider = context.read<SeoulSubwayProvider>();
-
-    // SeoulSubwayProvider 데이터가 없으면 초기화
-    if (!seoulSubwayProvider.hasStations && !seoulSubwayProvider.isLoading) {
-      KSYLog.info('🚇 SeoulSubwayProvider 데이터 초기화 시작...');
-      await seoulSubwayProvider.initialize();
-      KSYLog.info(
-        '🚇 SeoulSubwayProvider 데이터 초기화 완료: ${seoulSubwayProvider.hasStations}',
-      );
-    } else if (seoulSubwayProvider.isLoading) {
-      // 이미 로딩 중이면 완료될 때까지 대기
-      KSYLog.info('🚇 SeoulSubwayProvider 로딩 중, 대기...');
-      while (seoulSubwayProvider.isLoading) {
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-      KSYLog.info(
-        '🚇 SeoulSubwayProvider 로딩 완료: ${seoulSubwayProvider.hasStations}',
-      );
-    }
   }
 
   /// 지도 준비 완료 콜백
@@ -90,127 +60,156 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
     KSYLog.info('🗺️ 네이버 지도 준비 완료');
 
     final locationProvider = context.read<LocationProvider>();
-    final seoulSubwayProvider = context.read<SeoulSubwayProvider>();
-
-    // 데이터 초기화가 완료될 때까지 대기
-    if (!seoulSubwayProvider.hasStations) {
-      KSYLog.info('🚇 SeoulSubwayProvider 데이터 초기화 대기 중...');
-      await _initializeData();
-    }
 
     // 현재 위치가 있으면 표시
     if (locationProvider.currentPosition != null) {
-      await _addCurrentLocationMarker(
-        locationProvider.currentPosition!.latitude,
-        locationProvider.currentPosition!.longitude,
-      );
+      final lat = locationProvider.currentPosition!.latitude;
+      final lng = locationProvider.currentPosition!.longitude;
+      await _addCurrentLocationMarker(lat, lng);
 
       // 현재 위치로 카메라 이동
       final cameraUpdate = NCameraUpdate.scrollAndZoomTo(
-        target: NLatLng(
-          locationProvider.currentPosition!.latitude,
-          locationProvider.currentPosition!.longitude,
-        ),
+        target: NLatLng(lat, lng),
         zoom: 15,
       );
       await _mapController!.updateCamera(cameraUpdate);
     }
+    // 초기 로딩
+    _loadVisibleStations();
   }
 
   /// 카메라 변경 콜백 (지도 이동 시)
   void _onCameraChange(NCameraUpdateReason reason, bool isAnimated) {
     // 디바운스로 과도한 호출 방지
-    // _debounceTimer?.cancel();
-    // _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-    //   if (mounted) {
-    //     _loadVisibleStations();
-    //   }
-    // });
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _loadVisibleStations();
+      }
+    });
   }
 
   /// 카메라 변경 완료 콜백
   void _onCameraIdle() {
+    _debounceTimer?.cancel(); // 기존 타이머 취소
     _loadVisibleStations();
   }
 
-  /// 현재 화면에 보이는 역들 로드
+  /// 현재 화면에 보이는 역들 로드 (API 호출)
   Future<void> _loadVisibleStations() async {
-    if (_mapController == null) return;
+    if (_mapController == null || _isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
     try {
-      // 현재 카메라 위치 가져오기
       final cameraPosition = await _mapController!.getCameraPosition();
       _currentCameraPosition = cameraPosition;
 
       final center = cameraPosition.target;
-      final zoomLevel = cameraPosition.zoom;
+      final zoom = cameraPosition.zoom;
 
       KSYLog.debug(
-        '📍 지도 중심: ${center.latitude}, ${center.longitude}, 줌: $zoomLevel',
+        '📍 지도 중심: ${center.latitude}, ${center.longitude}, 줌: $zoom',
       );
 
-      // LocationProvider 업데이트
-      final locationProvider = context.read<LocationProvider>();
-      locationProvider.updateMapBounds(
-        center.latitude,
-        center.longitude,
-        zoomLevel,
-      );
-
-      // 화면 내 역 가져오기
-      final stations = locationProvider.visibleStations;
-
-      if (stations.isEmpty) {
-        KSYLog.debug('🚇 표시할 역이 없음');
-        return;
+      // 줌 레벨에 따른 검색 결과 제한 (개수)
+      int limit;
+      if (zoom >= 16) {
+        limit = 30; // 매우 높은 줌: 30개
+      } else if (zoom >= 14) {
+        limit = 50; // 높은 줌: 50개
+      } else if (zoom >= 12) {
+        limit = 80; // 중간 줌: 80개
+      } else {
+        limit = 100; // 낮은 줌: 100개
       }
 
+      // API 호출하여 주변 역 정보 가져오기
+      final stations = await _nearbyApiService.getNearbyStations(
+        latitude: center.latitude,
+        longitude: center.longitude,
+        limit: limit,
+      );
+
+      KSYLog.info('🚇 API로부터 ${stations.length}개 역 정보 수신');
+
+      // SubwayStation -> SeoulSubwayStation 모델로 변환
+      final seoulStations = stations
+          .map((s) {
+            // API 응답에 호선 정보가 없을 경우 기본값 처리
+            final lineName = s.subwayRouteName ?? '미분류';
+
+            // 좌표가 유효한지 확인
+            final lat = s.latitude ?? 0.0;
+            final lng = s.longitude ?? 0.0;
+
+            KSYLog.debug(
+              '🚇 역 변환: ${s.subwayStationName}, 호선: $lineName, 좌표: ($lat, $lng), subwayStationId: ${s.subwayStationId}',
+            );
+
+            return SeoulSubwayStation(
+              stationName: s.subwayStationName,
+              lineName: lineName,
+              latitude: lat,
+              longitude: lng,
+              stationCode: s.subwayStationId,
+              subwayStationId: s.subwayStationId, // 국토교통부 API용 ID
+            );
+          })
+          .where(
+            (station) => station.latitude != 0.0 && station.longitude != 0.0,
+          )
+          .toList();
+
       // 마커 업데이트
-      await _updateStationMarkers(stations);
+      await _updateStationMarkers(seoulStations);
     } catch (e) {
       KSYLog.error('❌ 화면 내 역 로드 오류', e);
+      if (mounted) {
+        setState(() {
+          _errorMessage = '주변 역 정보를 불러오는데 실패했습니다.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   /// 역 마커 업데이트
   Future<void> _updateStationMarkers(List<SeoulSubwayStation> stations) async {
-    if (_mapController == null || _currentCameraPosition == null) return;
+    if (_mapController == null || _currentCameraPosition == null) {
+      KSYLog.warning('⚠️ 지도 컨트롤러 또는 카메라 위치 없음');
+      return;
+    }
 
     try {
+      KSYLog.info('🔄 마커 업데이트 시작: ${stations.length}개 역');
+
       // 기존 역 마커들 제거
       await _clearStationMarkers();
 
+      if (stations.isEmpty) {
+        KSYLog.warning('⚠️ 표시할 역이 없음');
+        return;
+      }
+
       // 지도 중심점 가져오기
       final center = _currentCameraPosition!.target;
+      KSYLog.debug('📍 지도 중심: (${center.latitude}, ${center.longitude})');
 
-      // 지도 중심점으로부터 거리순으로 정렬
-      final stationsWithDistance = stations.map((station) {
-        final distance = LocationUtils.calculateDistanceM(
-          center.latitude,
-          center.longitude,
-          station.latitude,
-          station.longitude,
-        );
-        return {'station': station, 'distance': distance};
-      }).toList();
+      int successCount = 0;
+      int failCount = 0;
 
-      // 거리순으로 정렬
-      stationsWithDistance.sort(
-        (a, b) => (a['distance'] as double).compareTo(b['distance'] as double),
-      );
-
-      // 가장 가까운 60개만 선택
-      final stationsToShow = stationsWithDistance
-          .take(60)
-          .map((item) => item['station'] as SeoulSubwayStation)
-          .toList();
-
-      KSYLog.info(
-        '🚇 지도 중심(${center.latitude.toStringAsFixed(4)}, ${center.longitude.toStringAsFixed(4)})에서 가장 가까운 ${stationsToShow.length}개 마커 추가',
-      );
-
-      for (int i = 0; i < stationsToShow.length; i++) {
-        final station = stationsToShow[i];
+      // 마커 업데이트
+      for (int i = 0; i < stations.length; i++) {
+        final station = stations[i];
 
         try {
           // 마커 생성
@@ -218,25 +217,45 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
 
           // 마커 클릭 이벤트
           marker.setOnTapListener((overlay) {
+            KSYLog.ui('🔘 마커 클릭: ${station.stationName}');
             _showStationInfo(station);
           });
 
           // 지도에 추가
           await _mapController!.addOverlay(marker);
           _stationMarkers.add(marker);
+          successCount++;
 
           KSYLog.debug(
-            '📍 마커 추가 완료: ${station.stationName} (총 ${_stationMarkers.length}개)',
+            '📍 마커 추가 완료: ${station.stationName} ($successCount/${stations.length})',
           );
         } catch (e) {
-          KSYLog.error('❌ 마커 추가 실패: ${station.stationName}', e);
+          failCount++;
+          KSYLog.error(
+            '❌ 마커 추가 실패: ${station.stationName} ($failCount번째 실패)',
+            e,
+          );
           // 개별 마커 실패는 무시하고 계속
         }
       }
 
-      KSYLog.info('✅ 마커 ${_stationMarkers.length}개 추가 완료');
+      KSYLog.info('✅ 마커 업데이트 완료: 성공 $successCount개, 실패 $failCount개');
+
+      if (successCount == 0) {
+        KSYLog.error('❌ 모든 마커 생성 실패');
+        if (mounted) {
+          setState(() {
+            _errorMessage = '지도 마커를 표시할 수 없습니다.';
+          });
+        }
+      }
     } catch (e) {
       KSYLog.error('❌ 마커 업데이트 오류', e);
+      if (mounted) {
+        setState(() {
+          _errorMessage = '지도 마커 업데이트 중 오류가 발생했습니다.';
+        });
+      }
     }
   }
 
@@ -246,14 +265,36 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
     int index,
   ) async {
     try {
-      KSYLog.debug('🎯 마커 생성 시도: ${station.stationName} (${station.lineName})');
+      KSYLog.debug(
+        '🎯 마커 생성 시도: ${station.stationName} (${station.lineName}) at (${station.latitude}, ${station.longitude})',
+      );
+
+      if (!mounted) {
+        KSYLog.warning('⚠️ Widget이 마운트되지 않음: ${station.stationName}');
+        throw Exception('Widget is not mounted');
+      }
+
+      // 좌표 유효성 검사
+      if (station.latitude == 0.0 || station.longitude == 0.0) {
+        KSYLog.warning(
+          '⚠️ 잘못된 좌표: ${station.stationName} (${station.latitude}, ${station.longitude})',
+        );
+        throw Exception('Invalid coordinates');
+      }
+
+      final lineColor = SubwayUtils.getLineColor(station.lineName);
+      final shortName = SubwayUtils.getLineShortName(station.lineName);
+
+      KSYLog.debug(
+        '🎨 마커 스타일: 색상=${lineColor.toARGB32().toRadixString(16)}, 텍스트=$shortName',
+      );
 
       final markerIcon = await NOverlayImage.fromWidget(
         widget: Container(
           width: 30,
           height: 30,
           decoration: BoxDecoration(
-            color: SubwayUtils.getLineColor(station.lineName),
+            color: lineColor,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2),
             boxShadow: const [
@@ -266,7 +307,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
           ),
           child: Center(
             child: Text(
-              SubwayUtils.getLineShortName(station.lineName),
+              shortName,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
@@ -281,7 +322,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       );
 
       final marker = NMarker(
-        id: 'station_$index',
+        id: 'station_${index}_${station.stationName}',
         position: NLatLng(station.latitude, station.longitude),
         icon: markerIcon,
         anchor: const NPoint(0.5, 0.5),
@@ -320,6 +361,8 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       if (_currentLocationMarker != null) {
         await _mapController!.deleteOverlay(_currentLocationMarker!.info);
       }
+
+      if (!mounted) return;
 
       // 현재 위치 마커 아이콘 생성
       final markerIcon = await NOverlayImage.fromWidget(
@@ -372,17 +415,13 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
 
       // 위치 권한 처리
       if (!locationProvider.hasLocationPermission) {
-        await locationProvider.initializeLocationStatus();
-
-        if (!locationProvider.hasLocationPermission) {
-          final granted = await locationProvider.requestLocationPermission();
-          if (!granted) {
-            setState(() {
-              _isLoading = false;
-              _errorMessage = '위치 권한이 필요합니다. 설정에서 권한을 허용해주세요.';
-            });
-            return;
-          }
+        final granted = await locationProvider.requestLocationPermission();
+        if (!granted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = '위치 권한이 필요합니다. 설정에서 권한을 허용해주세요.';
+          });
+          return;
         }
       }
 
@@ -600,10 +639,33 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
     );
 
     try {
-      // 1. 캐싱을 활용한 API 검색
-      final stationGroup = await subwayProvider.getStationGroupByName(
-        seoulStation.stationName,
+      StationGroup? stationGroup;
+
+      // 1. subwayStationId가 있으면 우선 사용
+      KSYLog.debug(
+        '📋 상세페이지 이동 - 역명: ${seoulStation.stationName}, subwayStationId: ${seoulStation.subwayStationId}',
       );
+
+      if (seoulStation.subwayStationId != null &&
+          seoulStation.subwayStationId!.isNotEmpty) {
+        KSYLog.info('🆔 subwayStationId 사용: ${seoulStation.subwayStationId}');
+        stationGroup = await subwayProvider.getStationDetailsBySubwayStationId(
+          subwayStationId: seoulStation.subwayStationId!,
+          stationName: seoulStation.stationName,
+        );
+      } else {
+        KSYLog.warning(
+          '⚠️ subwayStationId가 없음 또는 비어있음: ${seoulStation.subwayStationId}',
+        );
+      }
+
+      // 2. subwayStationId 실패 시 기존 방식 사용
+      if (stationGroup == null) {
+        KSYLog.info('🔍 기존 역명 검색 방식 사용: ${seoulStation.stationName}');
+        stationGroup = await subwayProvider.getStationGroupByName(
+          seoulStation.stationName,
+        );
+      }
 
       // 로딩 닫기
       if (mounted) {
@@ -615,7 +677,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
         KSYLog.warning('⚠️ API 검색 실패, 기본 데이터 사용: ${seoulStation.stationName}');
         final fallbackStation = seoulStation.toSubwayStation();
         final fallbackGroup = StationGroup(
-          stationName: fallbackStation.stationName,
+          stationName: fallbackStation.subwayStationName,
           stations: [fallbackStation],
         );
 
@@ -639,13 +701,14 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       SubwayStation? initialStation;
 
       // 정확한 호선 매칭 시도
-      initialStation = stationGroup.stations.firstWhere(
+      final validStationGroup = stationGroup;
+      initialStation = validStationGroup.stations.firstWhere(
         (station) => station.effectiveLineNumber == clickedLineNumber,
-        orElse: () => stationGroup.stations.first,
+        orElse: () => validStationGroup.stations.first,
       );
 
       KSYLog.info(
-        '✅ 지도 연동 성공: ${stationGroup.stationName} (호선 ${stationGroup.stations.length}개, 초기 선택: ${initialStation.effectiveLineNumber})',
+        '✅ 지도 연동 성공: ${validStationGroup.stationName} (호선 ${validStationGroup.stations.length}개, 초기 선택: ${initialStation.effectiveLineNumber})',
       );
 
       // 3. 상세 페이지로 이동
@@ -653,7 +716,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => MultiLineStationDetailScreen(
-              stationGroup: stationGroup,
+              stationGroup: validStationGroup,
               initialStation: initialStation,
             ),
           ),
@@ -670,7 +733,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       // 오류 시 기본 데이터로 폴백
       final fallbackStation = seoulStation.toSubwayStation();
       final fallbackGroup = StationGroup(
-        stationName: fallbackStation.stationName,
+        stationName: fallbackStation.subwayStationName,
         stations: [fallbackStation],
       );
 
@@ -694,7 +757,6 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
     }
   }
 
-
   /// 지도를 해당 역 중심으로 이동
   Future<void> _moveToStation(SeoulSubwayStation station) async {
     if (_mapController != null) {
@@ -714,9 +776,6 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       }
     }
   }
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -819,7 +878,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
               left: 16,
               right: 16,
               child: Card(
-                color: Colors.red.withOpacity(0.9),
+                color: Colors.red.withValues(alpha: 0.9),
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   child: Row(

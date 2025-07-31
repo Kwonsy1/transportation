@@ -19,6 +19,9 @@ class SeoulSubwayStation {
   
   /// 지하철구분명 (옵션)
   final String? subwayTypeName;
+  
+  /// 국토교통부 API용 지하철역 ID (옵션)
+  final String? subwayStationId;
 
   const SeoulSubwayStation({
     required this.stationName,
@@ -27,6 +30,7 @@ class SeoulSubwayStation {
     required this.longitude,
     this.stationCode,
     this.subwayTypeName,
+    this.subwayStationId,
   });
 
   factory SeoulSubwayStation.fromJson(Map<String, dynamic> json) {
@@ -57,7 +61,7 @@ class SeoulSubwayStation {
     final routeName = _formatRouteName(lineName);
     
     return SubwayStation(
-      subwayStationId: stationCode ?? _generateStationId(),
+      subwayStationId: subwayStationId ?? stationCode ?? _generateStationId(),
       subwayStationName: stationName,
       subwayRouteName: routeName,
       latitude: latitude,

@@ -1,10 +1,6 @@
-import 'package:json_annotation/json_annotation.dart';
 import 'subway_station.dart';
 
-part 'station_group.g.dart';
-
 /// 동일한 역명의 여러 호선을 그룹화하는 모델
-@JsonSerializable()
 class StationGroup {
   final String stationName;
   final List<SubwayStation> stations;
@@ -18,9 +14,29 @@ class StationGroup {
     this.longitude,
   });
 
-  factory StationGroup.fromJson(Map<String, dynamic> json) =>
-      _$StationGroupFromJson(json);
-  Map<String, dynamic> toJson() => _$StationGroupToJson(this);
+  // 수동으로 fromJson 구현
+  factory StationGroup.fromJson(Map<String, dynamic> json) {
+    return StationGroup(
+      stationName: json['stationName'] as String,
+      stations: (json['stations'] as List<dynamic>)
+          .map(
+            (e) => SubwayStation.fromGovApiJson(e as Map<String, dynamic>),
+          ) // fromGovApiJson 사용
+          .toList(),
+      latitude: json['latitude'] as double?,
+      longitude: json['longitude'] as double?,
+    );
+  }
+
+  // 수동으로 toJson 구현
+  Map<String, dynamic> toJson() {
+    return {
+      'stationName': stationName,
+      'stations': stations.map((e) => e.toJson()).toList(),
+      'latitude': latitude,
+      'longitude': longitude,
+    };
+  }
 
   /// 깨끗한 역명 (마지막 "역"만 제거)
   String get cleanStationName {
@@ -28,14 +44,17 @@ class StationGroup {
     if (stationName.endsWith('역')) {
       return stationName.substring(0, stationName.length - 1);
     }
-    return stationName
-        .replaceAll(RegExp(r'\d+호선'), '')
-        .trim();
+    return stationName.replaceAll(RegExp(r'\d+호선'), '').trim();
   }
 
   /// 포함된 호선 목록
   List<String> get availableLines {
-    return stations.map((station) => station.subwayRouteName).toSet().toList()
+    return stations
+        .map((station) => station.subwayRouteName)
+        .where((routeName) => routeName != null && routeName.isNotEmpty)
+        .cast<String>()
+        .toSet()
+        .toList()
       ..sort();
   }
 
@@ -46,7 +65,9 @@ class StationGroup {
   SubwayStation? getStationByLine(String lineName) {
     try {
       return stations.firstWhere(
-        (station) => station.subwayRouteName == lineName,
+        (station) =>
+            station.subwayRouteName != null &&
+            station.subwayRouteName == lineName,
       );
     } catch (e) {
       return null;
