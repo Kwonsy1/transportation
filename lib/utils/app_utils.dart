@@ -124,14 +124,14 @@ class SubwayUtils {
   }
 
   /// 호선명을 축약된 형태로 변환 (지도 마커용)
-  /// 
+  ///
   /// 예: "1호선" → "1", "경의중앙선" → "경의", "신분당선" → "신분"
   static String getLineShortName(String lineName) {
     // 숫자가 있으면 숫자만 반환
     final numberRegex = RegExp(r'(\d+)');
-    final match = numberRegex.firstMatch(lineName);
-    if (match != null) {
-      final number = match.group(1) ?? '';
+    final numberMatch = numberRegex.firstMatch(lineName);
+    if (numberMatch != null) {
+      final number = numberMatch.group(1)!;
       // 한 자리 숫자만 표시 (예: 01 -> 1, 02 -> 2)
       return int.tryParse(number)?.toString() ?? number;
     }

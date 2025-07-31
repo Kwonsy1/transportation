@@ -124,7 +124,7 @@ class SubwayStation {
     };
 
     for (final entry in specialLines.entries) {
-      if (subwayRouteName! == entry.key) { // 정확히 일치하는 경우
+      if (subwayRouteName!.contains(entry.key)) { // <-- 이 부분을 contains로 변경
         return entry.value;
       }
     }
