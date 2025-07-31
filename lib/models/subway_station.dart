@@ -13,7 +13,7 @@ class SubwayStation {
   final String subwayStationName;
 
   /// 노선명 (예: 서울 1호선)
-  final String subwayRouteName;
+  final String? subwayRouteName;
 
   /// 호선 번호 (예: "1", "2", "경의중앙")
   final String? lineNumber;
@@ -24,16 +24,32 @@ class SubwayStation {
   /// 경도 (API에서 제공하지 않으므로 옵션)
   final double? longitude;
 
+  /// 현재 위치로부터의 거리 (미터)
+  final double? dist;
+
   const SubwayStation({
     required this.subwayStationId,
     required this.subwayStationName,
-    required this.subwayRouteName,
+    this.subwayRouteName,
     this.lineNumber,
     this.latitude,
     this.longitude,
+    this.dist,
   });
 
-  factory SubwayStation.fromJson(Map<String, dynamic> json) => _$SubwayStationFromJson(json);
+  // Factory constructor for the new API response
+  factory SubwayStation.fromJson(Map<String, dynamic> json) {
+    return SubwayStation(
+      subwayStationId: json['stationId'] as String,
+      subwayStationName: json['stationName'] as String,
+      latitude: json['tmY'] as double?,
+      longitude: json['tmX'] as double?,
+      dist: json['dist'] as double?,
+    );
+  }
+
+  // Existing fromJson, renamed to be specific
+  factory SubwayStation.fromJsonWithRoute(Map<String, dynamic> json) => _$SubwayStationFromJson(json);
 
   Map<String, dynamic> toJson() => _$SubwayStationToJson(this);
 
@@ -43,9 +59,10 @@ class SubwayStation {
       return lineNumber!;
     }
     
+    if (subwayRouteName == null) return '1';
     // 노선명에서 추출
     final numberRegex = RegExp(r'(\d+)호선');
-    final numberMatch = numberRegex.firstMatch(subwayRouteName);
+    final numberMatch = numberRegex.firstMatch(subwayRouteName!);
     if (numberMatch != null) {
       return numberMatch.group(1)!;
     }
@@ -64,7 +81,7 @@ class SubwayStation {
     };
     
     for (final entry in specialLines.entries) {
-      if (subwayRouteName.contains(entry.key)) {
+      if (subwayRouteName!.contains(entry.key)) {
         return entry.value;
       }
     }
@@ -76,7 +93,7 @@ class SubwayStation {
   String get stationName => subwayStationName;
 
   /// 단순화된 노선명
-  String get lineName => subwayRouteName;
+  String get lineName => subwayRouteName ?? '';
 
   @override
   String toString() {
