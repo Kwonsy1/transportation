@@ -4,7 +4,7 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'dart:async';
 import '../services/nearby_station_api_service.dart';
-import '../utils/location_utils.dart';
+import '../models/server_api_response.dart';
 import '../constants/app_constants.dart';
 import '../providers/location_provider.dart';
 import '../providers/subway_provider.dart';
@@ -111,9 +111,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
       final center = cameraPosition.target;
       final zoom = cameraPosition.zoom;
 
-      KSYLog.debug(
-        '📍 지도 중심: ${center.latitude}, ${center.longitude}, 줌: $zoom',
-      );
+      KSYLog.debug('지도 중심: ${center.latitude}, ${center.longitude}, 줌: $zoom');
 
       // 줌 레벨에 따른 검색 결과 제한 (개수)
       int limit;
@@ -127,14 +125,98 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
         limit = 100; // 낮은 줌: 100개
       }
 
-      // API 호출하여 주변 역 정보 가져오기
-      final stations = await _nearbyApiService.getNearbyStations(
+      // 줌 레벨에 따른 검색 반경 설정 (km)
+      int radius;
+      if (zoom >= 16) {
+        radius = 1; // 매우 높은 줌: 1km 반경
+      } else if (zoom >= 14) {
+        radius = 5; // 높은 줌: 5km 반경
+      } else if (zoom >= 12) {
+        radius = 10; // 중간 줌: 10km 반경
+      } else {
+        radius = 20; // 낮은 줌: 20km 반경
+      }
+
+      // API 호출하여 주변 역 정보 가져오기 (새로운 그룹화된 API 사용)
+      var groupedResponse = await _nearbyApiService.getNearbyStationsGrouped(
         latitude: center.latitude,
         longitude: center.longitude,
+        radius: radius,
         limit: limit,
       );
 
-      KSYLog.info('🚇 API로부터 ${stations.length}개 역 정보 수신');
+      KSYLog.info('API로부터 ${groupedResponse.totalCount}개 역 그룹 수신');
+
+      // 역 이름이 null인 경우, details 정보로 복원 시도
+      final subwayProvider = context.read<SubwayProvider>();
+      final restoredStations = <GroupedNearbyStation>[];
+
+      for (final group in groupedResponse.stations) {
+        if (group.stationName == null || group.stationName!.isEmpty) {
+          KSYLog.warning('⚠️ 역 이름이 비어있음. 복원을 시도합니다.');
+          if (group.details.isNotEmpty &&
+              group.details.first.subwayStationId != null) {
+            final firstDetail = group.details.first;
+            try {
+              final stationInfo = await subwayProvider
+                  .getStationDetailsBySubwayStationId(
+                    subwayStationId: firstDetail.subwayStationId!,
+                    stationName: '임시 역명', // 임시 역명 사용
+                  );
+
+              if (stationInfo != null) {
+                KSYLog.info('✅ 역 이름 복원 성공: ${stationInfo.stationName}');
+                // 복원된 정보로 새로운 GroupedNearbyStation 객체 생성
+                restoredStations.add(
+                  GroupedNearbyStation(
+                    stationName: stationInfo.stationName,
+                    coordinates: group.coordinates,
+                    distanceKm: group.distanceKm,
+                    address: group.address,
+                    region: group.region,
+                    stationCount: group.stationCount,
+                    details: group.details,
+                  ),
+                );
+              } else {
+                KSYLog.error('❌ 역 이름 복원 실패: ${firstDetail.subwayStationId}');
+              }
+            } catch (e) {
+              KSYLog.error('❌ 역 이름 복원 중 오류 발생', e);
+            }
+          } else {
+            KSYLog.warning('⚠️ 복원에 필요한 정보(subwayStationId)가 없습니다.');
+          }
+        } else {
+          restoredStations.add(group);
+        }
+      }
+
+      // 그룹화된 결과를 개별 SubwayStation 목록으로 변환
+      final stations = <SubwayStation>[];
+      for (final group in restoredStations) {
+        // 좌표 정보가 없는 그룹은 건너뜀
+        if (group.coordinates == null) {
+          KSYLog.warning('⚠️ 좌표 정보가 없는 역 그룹: ${group.stationName}');
+          continue;
+        }
+
+        for (final detail in group.details) {
+          stations.add(
+            SubwayStation(
+              subwayStationId: detail.subwayStationId ?? '',
+              subwayStationName: group.stationName ?? '이름 없음', // null일 경우 기본값 제공
+              subwayRouteName: detail.lineNumber ?? '미분류',
+              lineNumber: detail.lineNumber ?? '미분류',
+              latitude: group.coordinates!.latitude,
+              longitude: group.coordinates!.longitude,
+              dist: group.distanceKm,
+            ),
+          );
+        }
+      }
+
+      KSYLog.info('변환된 ${stations.length}개 개별 역 정보');
 
       // SubwayStation -> SeoulSubwayStation 모델로 변환
       final seoulStations = stations
@@ -147,7 +229,7 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
             final lng = s.longitude ?? 0.0;
 
             KSYLog.debug(
-              '🚇 역 변환: ${s.subwayStationName}, 호선: $lineName, 좌표: ($lat, $lng), subwayStationId: ${s.subwayStationId}',
+              '역 변환: ${s.subwayStationName}, 호선: $lineName, 좌표: ($lat, $lng), subwayStationId: ${s.subwayStationId}',
             );
 
             return SeoulSubwayStation(

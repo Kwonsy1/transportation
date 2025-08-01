@@ -105,12 +105,17 @@ class HttpService {
     Options? options,
   }) async {
     try {
+      KSYLog.debug('HTTP 요청: ${ApiConstants.nearbyApiBaseUrl}$path');
+      KSYLog.debug('Query Parameters: $queryParameters');
+      
       return await _nearbyApiDio.get<T>(
         path,
         queryParameters: queryParameters,
         options: options,
       );
     } on DioException catch (e) {
+      KSYLog.error('HTTP 요청 실패: ${e.message}');
+      KSYLog.debug('Response: ${e.response?.data}');
       throw _handleDioError(e);
     }
   }

@@ -19,6 +19,22 @@ class StationGroupCard extends StatelessWidget {
   });
 
 
+  /// 호선 번호를 표시용으로 변환
+  String _getDisplayLineNumber(String lineNumber) {
+    // 숫자만 있는 경우 (1, 2, 3 등)
+    if (RegExp(r'^\d+$').hasMatch(lineNumber)) {
+      return '${lineNumber}호선';
+    }
+    
+    // 이미 "선"으로 끝나는 경우 그대로 반환
+    if (lineNumber.endsWith('선')) {
+      return lineNumber;
+    }
+    
+    // 기타 특수 호선의 경우 "선" 추가
+    return '${lineNumber}선';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -149,9 +165,7 @@ class StationGroupCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          (station.subwayRouteName ?? '')
-                              .replaceAll('서울 ', '')
-                              .replaceAll('호선', ''),
+                          _getDisplayLineNumber(station.effectiveLineNumber),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,

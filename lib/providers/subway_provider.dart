@@ -4,13 +4,15 @@ import '../models/subway_schedule.dart';
 import '../models/next_train_info.dart';
 import '../models/station_group.dart';
 import '../services/subway_api_service.dart';
+import '../services/server_api_service.dart';
 import '../services/favorites_storage_service.dart';
 import '../utils/ksy_log.dart';
 import '../utils/station_utils.dart';
 
-/// 지하철 정보 상태 관리 Provider (국토교통부 API 기준)
+/// 지하철 정보 상태 관리 Provider (국토교통부 API + 커스텀 서버 API)
 class SubwayProvider extends ChangeNotifier {
   final SubwayApiService _apiService = SubwayApiService();
+  final ServerApiService _serverApiService = ServerApiService();
 
   // 현재 선택된 역
   SubwayStation? _selectedStation;
@@ -75,11 +77,18 @@ class SubwayProvider extends ChangeNotifier {
 
   /// 역 선택
   void selectStation(SubwayStation station) {
-    _selectedStation = station;
-    _clearNextTrains();
-    _clearSchedules();
-    _clearExitInfo();
-    notifyListeners();
+    KSYLog.info('Provider: 역 선택 - ${station.subwayStationName} (${station.effectiveLineNumber}, ID: ${station.subwayStationId})');
+    if (_selectedStation?.subwayStationId != station.subwayStationId) {
+      KSYLog.debug('Provider: 역 변경됨 - ${_selectedStation?.effectiveLineNumber} → ${station.effectiveLineNumber}');
+      _selectedStation = station;
+      _clearNextTrains();
+      _clearSchedules();
+      _clearExitInfo();
+      notifyListeners();
+      KSYLog.debug('Provider: notifyListeners() 호출 완료');
+    } else {
+      KSYLog.warning('Provider: 동일한 역 선택됨');
+    }
   }
 
   /// 다음 열차 정보 로드 (실시간 도착정보 대신)
@@ -228,15 +237,49 @@ class SubwayProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 기본 검색 수행
-      _searchResults = await _apiService.searchStations(
-        stationName: stationName.trim(),
-      );
-
-      // 그룹 모드일 때 그룹화 수행
       if (_isGroupSearchMode) {
-        _groupedSearchResults = StationGrouper.groupStations(_searchResults);
+        // 그룹 모드: 새로운 서버 API의 그룹화된 검색 사용
+        final groupedResults = await _serverApiService.searchStationsGrouped(
+          stationName.trim(),
+        );
+
+        // GroupedStationResponse를 StationGroup으로 변환
+        final convertedGroups = groupedResults.map((grouped) {
+          // 각 그룹의 상세 역 정보를 SubwayStation으로 변환
+          final stations = grouped.details
+              .map(
+                (detail) => SubwayStation(
+                  subwayStationId: detail.subwayStationId ?? '',
+                  subwayStationName: grouped.stationName,
+                  subwayRouteName: detail.lineNumber,
+                  lineNumber: detail.lineNumber,
+                  latitude: detail.latitude ?? grouped.representativeLatitude,
+                  longitude: detail.longitude ?? grouped.representativeLongitude,
+                ),
+              )
+              .toList();
+
+          return StationGroup(
+            stationName: grouped.stationName,
+            stations: stations,
+            latitude: grouped.representativeLatitude,
+            longitude: grouped.representativeLongitude,
+            address: grouped.representativeAddress,
+          );
+        }).toList();
+
+        // 결과 할당
+        _groupedSearchResults = convertedGroups;
+
+        // 개별 검색 결과도 업데이트 (호환성을 위해)
+        _searchResults = convertedGroups
+            .expand((group) => group.stations)
+            .toList();
       } else {
+        // 개별 모드: 새로운 서버 API의 스마트 검색 사용
+        _searchResults = await _serverApiService.searchStationsSmart(
+          stationName.trim(),
+        );
         _groupedSearchResults = [];
       }
     } catch (e) {
@@ -459,24 +502,49 @@ class SubwayProvider extends ChangeNotifier {
       return _stationGroupCache[cleanName];
     }
 
-    // 2. API 검색
-    KSYLog.debug('🔍 API 검색 시작: $cleanName');
+    // 2. API 검색 (새로운 서버 API 사용)
+    KSYLog.debug('API 검색 시작: $cleanName');
 
     try {
-      final searchResults = await _apiService.searchStations(
-        stationName: cleanName,
+      // 먼저 새로운 서버 API의 그룹화된 검색 시도
+      final groupedResults = await _serverApiService.searchStationsGrouped(
+        cleanName,
       );
 
-      if (searchResults.isEmpty) {
-        KSYLog.warning('❌ 검색 결과 없음: $cleanName');
+      if (groupedResults.isEmpty) {
+        KSYLog.warning('검색 결과 없음: $cleanName');
         return null;
       }
 
-      // 3. 그룹화
-      final groupedResults = StationGrouper.groupStations(searchResults);
-      final matchingGroup = groupedResults.firstWhere(
-        (group) => StationUtils.cleanStationName(group.stationName) == cleanName,
-        orElse: () => groupedResults.first,
+      // GroupedStationResponse를 StationGroup으로 변환
+      final serverGroups = groupedResults.map((grouped) {
+        final stations = grouped.details
+            .map(
+              (detail) => SubwayStation(
+                subwayStationId: detail.subwayStationId ?? '',
+                subwayStationName: grouped.stationName,
+                subwayRouteName: detail.lineNumber,
+                lineNumber: detail.lineNumber,
+                latitude: detail.latitude ?? grouped.representativeLatitude,
+                longitude: detail.longitude ?? grouped.representativeLongitude,
+              ),
+            )
+            .toList();
+
+        return StationGroup(
+          stationName: grouped.stationName,
+          stations: stations,
+          latitude: grouped.representativeLatitude,
+          longitude: grouped.representativeLongitude,
+          address: grouped.representativeAddress,
+        );
+      }).toList();
+
+      // 가장 적합한 그룹 선택
+      final matchingGroup = serverGroups.firstWhere(
+        (group) =>
+            StationUtils.cleanStationName(group.stationName) == cleanName,
+        orElse: () => serverGroups.first,
       );
 
       // 4. 캐시 저장
@@ -484,15 +552,14 @@ class SubwayProvider extends ChangeNotifier {
       _cacheTimestamps[cleanName] = DateTime.now();
 
       KSYLog.info(
-        '✅ API 검색 성공 및 캐싱: $cleanName (호선 ${matchingGroup.stations.length}개)',
+        'API 검색 성공 및 캐싱: $cleanName (호선 ${matchingGroup.stations.length}개)',
       );
       return matchingGroup;
     } catch (e) {
-      KSYLog.error('❌ API 검색 실패: $cleanName', e);
+      KSYLog.error('서버 API 검색 실패: $cleanName', e);
       return null;
     }
   }
-
 
   /// 캐시 유효성 확인 (24시간)
   bool _isValidCache(String cleanName) {
@@ -537,18 +604,22 @@ class SubwayProvider extends ChangeNotifier {
     required String stationName,
   }) async {
     try {
-      KSYLog.info('🔍 subwayStationId로 상세 정보 조회: $subwayStationId ($stationName)');
+      KSYLog.info(
+        '🔍 subwayStationId로 상세 정보 조회: $subwayStationId ($stationName)',
+      );
 
       // 1. 해당 subwayStationId로 시간표 조회 시도 (역 존재 여부 확인)
-      KSYLog.debug('🔍 시간표 조회 시도 - subwayStationId: $subwayStationId, dailyTypeCode: ${getCurrentDailyTypeCode()}');
-      
+      KSYLog.debug(
+        '🔍 시간표 조회 시도 - subwayStationId: $subwayStationId, dailyTypeCode: ${getCurrentDailyTypeCode()}',
+      );
+
       final schedules = await _apiService.getSchedules(
         subwayStationId: subwayStationId,
         dailyTypeCode: getCurrentDailyTypeCode(),
         upDownTypeCode: 'U', // 상행으로 테스트
         numOfRows: 1, // 최소한으로 조회
       );
-      
+
       KSYLog.debug('📊 시간표 조회 결과: ${schedules.length}개');
 
       if (schedules.isNotEmpty) {

@@ -139,14 +139,14 @@ class SubwayUtils {
     // 특별한 노선들의 축약명
     final Map<String, String> specialLines = {
       '경의중앙선': '경의',
-      '분당선': '분당',
       '신분당선': '신분',
       '경춘선': '경춘',
-      '수인분당선': '수인',
+      '수인분당선': '분당',
       '우이신설선': '우이',
       '서해선': '서해',
       '김포골드라인': '김포',
       '신림선': '신림',
+      '분당선': '분당',
     };
 
     for (final entry in specialLines.entries) {

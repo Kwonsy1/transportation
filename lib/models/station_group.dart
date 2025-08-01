@@ -6,12 +6,14 @@ class StationGroup {
   final List<SubwayStation> stations;
   final double? latitude;
   final double? longitude;
+  final String? address;
 
   StationGroup({
     required this.stationName,
     required this.stations,
     this.latitude,
     this.longitude,
+    this.address,
   });
 
   // 수동으로 fromJson 구현
@@ -25,6 +27,7 @@ class StationGroup {
           .toList(),
       latitude: json['latitude'] as double?,
       longitude: json['longitude'] as double?,
+      address: json['address'] as String?,
     );
   }
 
@@ -35,6 +38,7 @@ class StationGroup {
       'stations': stations.map((e) => e.toJson()).toList(),
       'latitude': latitude,
       'longitude': longitude,
+      'address': address,
     };
   }
 
@@ -156,6 +160,7 @@ class StationGrouper {
         stations: stationList,
         latitude: firstStation.latitude,
         longitude: firstStation.longitude,
+        address: null, // GroupStations doesn't have address info
       );
     }).toList();
   }

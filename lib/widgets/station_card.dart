@@ -21,6 +21,21 @@ class StationCard extends StatelessWidget {
     this.showDistance = false,
   });
 
+  /// 호선 번호를 표시용으로 변환
+  String _getDisplayLineNumber(String lineNumber) {
+    // 숫자만 있는 경우 (1, 2, 3 등)
+    if (RegExp(r'^\d+$').hasMatch(lineNumber)) {
+      return '${lineNumber}호선';
+    }
+    
+    // 이미 "선"으로 끝나는 경우 그대로 반환
+    if (lineNumber.endsWith('선')) {
+      return lineNumber;
+    }
+    
+    // 기타 특수 호선의 경우 "선" 추가
+    return '${lineNumber}선';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +81,7 @@ class StationCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      station.subwayRouteName ?? '',
+                      _getDisplayLineNumber(station.effectiveLineNumber),
                       style: AppTextStyles.bodySmall.copyWith(
                         color: SubwayUtils.getLineColor(station.effectiveLineNumber),
                       ),

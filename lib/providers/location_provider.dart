@@ -4,12 +4,12 @@ import 'dart:async';
 import '../models/subway_station.dart';
 import '../services/location_service.dart';
 import '../services/nearby_station_api_service.dart';
-import '../utils/ksy_log.dart';
 
 /// 위치 정보 상태 관리 Provider
 class LocationProvider extends ChangeNotifier {
   final LocationService _locationService = LocationService.instance;
-  final NearbyStationApiService _nearbyStationApiService = NearbyStationApiService();
+  final NearbyStationApiService _nearbyStationApiService =
+      NearbyStationApiService();
 
   // 현재 위치
   Position? _currentPosition;
@@ -37,7 +37,8 @@ class LocationProvider extends ChangeNotifier {
   /// 위치 권한 요청
   Future<bool> requestLocationPermission() async {
     try {
-      _hasLocationPermission = await _locationService.requestLocationPermission();
+      _hasLocationPermission = await _locationService
+          .requestLocationPermission();
       notifyListeners();
       return _hasLocationPermission;
     } catch (e) {
@@ -81,11 +82,34 @@ class LocationProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _nearbyStations = await _nearbyStationApiService.getNearbyStations(
-        latitude: _currentPosition!.latitude,
-        longitude: _currentPosition!.longitude,
-        limit: limit,
-      );
+      // 새로운 그룹화된 API를 사용하여 레거시 호환성 유지
+      final groupedResponse = await _nearbyStationApiService
+          .getNearbyStationsGrouped(
+            latitude: _currentPosition!.latitude,
+            longitude: _currentPosition!.longitude,
+            limit: limit,
+            radius: 10, // 10km 반경
+          );
+
+      // 그룹화된 결과를 개별 SubwayStation 목록으로 변환
+      final stations = <SubwayStation>[];
+      for (final group in groupedResponse.stations) {
+        for (final detail in group.details) {
+          stations.add(
+            SubwayStation(
+              subwayStationId: detail.subwayStationId ?? '',
+              subwayStationName: group.stationName ?? '',
+              subwayRouteName: detail.lineNumber,
+              lineNumber: detail.lineNumber,
+              latitude: group.coordinates!.latitude,
+              longitude: group.coordinates!.longitude,
+              dist: group.distanceKm,
+            ),
+          );
+        }
+      }
+
+      _nearbyStations = stations;
     } catch (e) {
       _errorMessage = '주변 역 정보를 불러오는데 실패했습니다: ${e.toString()}';
       _nearbyStations = [];

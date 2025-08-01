@@ -4,19 +4,19 @@ import 'package:flutter/foundation.dart';
 /// 로그 레벨 정의
 enum LogLevel {
   /// 디버그 정보 (개발 시에만 표시)
-  debug(0, '🔍', 'DEBUG'),
+  debug(0, 'DEBUG', 'DEBUG'),
   
   /// 일반 정보 (앱 흐름 추적)
-  info(1, 'ℹ️', 'INFO'),
+  info(1, 'INFO', 'INFO'),
   
   /// 경고 (주의가 필요한 상황)
-  warning(2, '⚠️', 'WARNING'),
+  warning(2, 'WARNING', 'WARNING'),
   
   /// 에러 (오류 발생)
-  error(3, '❌', 'ERROR'),
+  error(3, 'ERROR', 'ERROR'),
   
   /// 치명적 오류 (앱 종료 가능)
-  fatal(4, '💀', 'FATAL');
+  fatal(4, 'FATAL', 'FATAL');
 
   const LogLevel(this.level, this.emoji, this.name);
   
@@ -232,18 +232,18 @@ class KSYLog {
   /// 성능 측정용 로그
   static void performance(String operation, Duration duration) {
     final ms = duration.inMilliseconds;
-    final emoji = ms < 100 ? '⚡' : ms < 500 ? '🐌' : '🐢';
-    _log(LogLevel.info, '$emoji Performance: $operation took ${ms}ms');
+    final prefix = ms < 100 ? 'FAST' : ms < 500 ? 'SLOW' : 'VERY_SLOW';
+    _log(LogLevel.info, '$prefix Performance: $operation took ${ms}ms');
   }
   
   /// 네트워크 요청 로그
   static void network(String method, String url, [int? statusCode, Duration? duration]) {
     final buffer = StringBuffer();
-    buffer.write('🌐 $method $url');
+    buffer.write('NET $method $url');
     
     if (statusCode != null) {
-      final statusEmoji = statusCode < 300 ? '✅' : statusCode < 400 ? '📍' : '❌';
-      buffer.write(' $statusEmoji$statusCode');
+      final statusPrefix = statusCode < 300 ? 'OK' : statusCode < 400 ? 'REDIRECT' : 'ERROR';
+      buffer.write(' $statusPrefix$statusCode');
     }
     
     if (duration != null) {
@@ -256,7 +256,7 @@ class KSYLog {
   /// 데이터베이스 작업 로그
   static void database(String operation, String table, [int? affectedRows]) {
     final buffer = StringBuffer();
-    buffer.write('🗄️ DB: $operation on $table');
+    buffer.write('DB: $operation on $table');
     
     if (affectedRows != null) {
       buffer.write(' ($affectedRows rows)');
@@ -268,40 +268,40 @@ class KSYLog {
   /// 위치 정보 로그
   static void location(String action, double? latitude, double? longitude) {
     if (latitude != null && longitude != null) {
-      _log(LogLevel.info, '📍 Location: $action at ($latitude, $longitude)');
+      _log(LogLevel.info, 'LOCATION: $action at ($latitude, $longitude)');
     } else {
-      _log(LogLevel.info, '📍 Location: $action (coordinates unavailable)');
+      _log(LogLevel.info, 'LOCATION: $action (coordinates unavailable)');
     }
   }
   
   /// UI 이벤트 로그
   static void ui(String event, [String? details]) {
-    final message = details != null ? '🎨 UI: $event - $details' : '🎨 UI: $event';
+    final message = details != null ? 'UI: $event - $details' : 'UI: $event';
     _log(LogLevel.debug, message);
   }
   
   /// 권한 관련 로그
   static void permission(String permission, bool granted) {
-    final emoji = granted ? '✅' : '❌';
-    _log(LogLevel.info, '$emoji Permission: $permission ${granted ? 'granted' : 'denied'}');
+    final status = granted ? 'GRANTED' : 'DENIED';
+    _log(LogLevel.info, 'PERMISSION: $permission $status');
   }
   
   /// API 응답 로그
   static void apiResponse(String endpoint, bool success, [String? message]) {
-    final emoji = success ? '✅' : '❌';
+    final status = success ? 'SUCCESS' : 'FAILED';
     final logMessage = message != null 
-        ? '$emoji API: $endpoint - $message'
-        : '$emoji API: $endpoint ${success ? 'success' : 'failed'}';
+        ? 'API: $endpoint $status - $message'
+        : 'API: $endpoint $status';
     _log(success ? LogLevel.info : LogLevel.error, logMessage);
   }
   
   /// 캐시 작업 로그
   static void cache(String operation, String key, [bool? hit]) {
     final buffer = StringBuffer();
-    buffer.write('💾 Cache: $operation $key');
+    buffer.write('CACHE: $operation $key');
     
     if (hit != null) {
-      buffer.write(hit ? ' ✅ HIT' : ' ❌ MISS');
+      buffer.write(hit ? ' HIT' : ' MISS');
     }
     
     _log(LogLevel.debug, buffer.toString());
@@ -309,12 +309,12 @@ class KSYLog {
   
   /// 설정 변경 로그
   static void config(String setting, Object oldValue, Object newValue) {
-    _log(LogLevel.info, '⚙️ Config: $setting changed from $oldValue to $newValue');
+    _log(LogLevel.info, 'CONFIG: $setting changed from $oldValue to $newValue');
   }
   
   /// 앱 생명주기 로그
   static void lifecycle(String event) {
-    _log(LogLevel.info, '🔄 Lifecycle: $event');
+    _log(LogLevel.info, 'LIFECYCLE: $event');
   }
   
   /// 로그 설정 초기화 (앱 시작 시 호출)

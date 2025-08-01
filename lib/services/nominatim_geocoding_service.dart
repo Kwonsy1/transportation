@@ -84,7 +84,7 @@ class NominatimGeocodingService {
       }
 
       try {
-        KSYLog.debug('🔍 ${station.subwayStationName} 좌표 검색 시작...');
+        KSYLog.debug('${station.subwayStationName} 좌표 검색 시작...');
 
         // 역명으로 좌표 검색
         final locations = await searchStationCoordinates(
@@ -204,7 +204,7 @@ class NominatimGeocodingService {
         'namedetails': '1',
       };
 
-      KSYLog.debug('🔍 Nominatim 검색: $query (타임아웃: 20초)');
+      KSYLog.debug('Nominatim 검색: $query (타임아웃: 20초)');
 
       // Nominatim API를 위한 더 긴 타임아웃 설정
       final customDio = Dio();

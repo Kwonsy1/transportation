@@ -55,7 +55,7 @@ class SubwayStation {
     
     // subwayStationId 추출 디버깅
     final subwayStationId = json['subway_station_id']?.toString() ?? json['station_code']?.toString() ?? json['id']?.toString() ?? '';
-    KSYLog.debug('🆔 SubwayStation.fromNearbyApiJson - name: ${json['name']}, subway_station_id: ${json['subway_station_id']}, station_code: ${json['station_code']}, id: ${json['id']}, final: $subwayStationId');
+    KSYLog.debug('SubwayStation.fromNearbyApiJson - name: ${json['name']}, subway_station_id: ${json['subway_station_id']}, station_code: ${json['station_code']}, id: ${json['id']}, final: $subwayStationId');
     
     return SubwayStation(
       subwayStationId: subwayStationId,
@@ -81,12 +81,40 @@ class SubwayStation {
     );
   }
 
+  // Factory constructor for the custom server API response (커스텀 서버 API)
+  factory SubwayStation.fromServerApiJson(Map<String, dynamic> json) {
+    return SubwayStation(
+      subwayStationId: json['subwayStationId']?.toString() ?? json['subway_station_id']?.toString() ?? '',
+      subwayStationName: json['name']?.toString() ?? json['subwayStationName']?.toString() ?? '',
+      subwayRouteName: json['subwayRouteName']?.toString() ?? json['lineNumber']?.toString(),
+      lineNumber: json['lineNumber']?.toString() ?? json['line_number']?.toString(),
+      latitude: SubwayStation._safeParseDouble(json['latitude']),
+      longitude: SubwayStation._safeParseDouble(json['longitude']),
+      dist: SubwayStation._safeParseDouble(json['dist']),
+    );
+  }
+
   Map<String, dynamic> toJson() => _$SubwayStationToJson(this);
 
   /// 호선 번호 (필드가 있으면 사용, 없으면 노선명에서 추출)
   String get effectiveLineNumber {
-    // lineNumber 필드가 있으면 우선 사용
+    // lineNumber 필드가 있으면 우선 사용 (앞의 0 제거)
     if (lineNumber != null && lineNumber!.isNotEmpty) {
+      // 01호선 -> 1호선, 02호선 -> 2호선으로 변환
+      final numberRegex = RegExp(r'^0?(\d+)호선$');
+      final numberMatch = numberRegex.firstMatch(lineNumber!);
+      if (numberMatch != null) {
+        return numberMatch.group(1)!;
+      }
+      
+      // 호선이 붙지 않은 숫자의 경우 (01 -> 1, 02 -> 2)
+      final pureNumberRegex = RegExp(r'^0?(\d+)$');
+      final pureNumberMatch = pureNumberRegex.firstMatch(lineNumber!);
+      if (pureNumberMatch != null) {
+        return pureNumberMatch.group(1)!;
+      }
+      
+      // 기타 특수 호선은 그대로 반환
       return lineNumber!;
     }
 
@@ -124,7 +152,7 @@ class SubwayStation {
     };
 
     for (final entry in specialLines.entries) {
-      if (subwayRouteName!.contains(entry.key)) { // <-- 이 부분을 contains로 변경
+      if (subwayRouteName! == entry.key) { // 정확히 일치하는 경우
         return entry.value;
       }
     }
@@ -259,7 +287,7 @@ class SubwayExitFacility {
     
     return SubwayExitFacility(
       subwayStationId: json['subwayStationId']?.toString() ?? '',
-      subwayStationName: json['subwayStationName']?.toString() ?? json['subwayStationNm']?.toString() ?? '',
+      subwayStationName: json['substationName']?.toString() ?? json['subwayStationNm']?.toString() ?? '',
       exitNo: json['exitNo']?.toString() ?? json['subwayExitNo']?.toString() ?? json['exitNumber']?.toString() ?? '',
       // dirDesc가 실제 시설명인 것 같습니다
       cfFacilityNm: json['dirDesc']?.toString() ?? json['cfFacilityNm']?.toString() ?? json['facilityName']?.toString() ?? '',
