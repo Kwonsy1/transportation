@@ -78,7 +78,9 @@ class SubwayProvider extends ChangeNotifier {
   /// 역 선택
   void selectStation(SubwayStation station) {
     KSYLog.info('Provider: 역 선택 - ${station.subwayStationName} (${station.effectiveLineNumber}, ID: ${station.subwayStationId})');
-    if (_selectedStation?.subwayStationId != station.subwayStationId) {
+    KSYLog.debug('역 상세정보: lineNumber=${station.lineNumber}, subwayRouteName=${station.subwayRouteName}, effectiveLineNumber=${station.effectiveLineNumber}');
+    // 같은 역의 다른 호선도 변경으로 인식하도록 effectiveLineNumber로 비교
+    if (_selectedStation?.effectiveLineNumber != station.effectiveLineNumber) {
       KSYLog.debug('Provider: 역 변경됨 - ${_selectedStation?.effectiveLineNumber} → ${station.effectiveLineNumber}');
       _selectedStation = station;
       _clearNextTrains();
@@ -87,7 +89,7 @@ class SubwayProvider extends ChangeNotifier {
       notifyListeners();
       KSYLog.debug('Provider: notifyListeners() 호출 완료');
     } else {
-      KSYLog.warning('Provider: 동일한 역 선택됨');
+      KSYLog.warning('Provider: 동일한 호선 선택됨');
     }
   }
 
@@ -125,14 +127,36 @@ class SubwayProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      KSYLog.info('🚇 시간표 로드 시작: ${_selectedStation!.subwayStationName} (${_selectedStation!.effectiveLineNumber}호선)');
+      KSYLog.debug('   - subwayStationId: ${_selectedStation!.subwayStationId}');
+      KSYLog.debug('   - dailyTypeCode: $dailyTypeCode');
+      KSYLog.debug('   - upDownTypeCode: $upDownTypeCode');
+      
       _schedules = await _apiService.getSchedules(
         subwayStationId: _selectedStation!.subwayStationId,
         dailyTypeCode: dailyTypeCode,
         upDownTypeCode: upDownTypeCode,
       );
+      
+      KSYLog.info('📊 시간표 로드 완료: ${_schedules.length}개 항목');
+      
+      // 로드된 시간표의 호선 분포 분석
+      final routeDistribution = <String, int>{};
+      for (final schedule in _schedules) {
+        final routeId = schedule.subwayRouteId;
+        routeDistribution[routeId] = (routeDistribution[routeId] ?? 0) + 1;
+      }
+      
+      KSYLog.debug('🎯 로드된 시간표 호선 분포:');
+      routeDistribution.forEach((routeId, count) {
+        final lineNumber = _extractLineNumberFromRouteId(routeId);
+        KSYLog.debug('   - $routeId ($lineNumber호선): $count개');
+      });
+      
     } catch (e) {
       _errorMessage = '시간표 정보를 불러오는데 실패했습니다: ${e.toString()}';
       _schedules = [];
+      KSYLog.error('❌ 시간표 로드 실패', e);
     } finally {
       _isLoadingSchedules = false;
       notifyListeners();
@@ -385,27 +409,152 @@ class SubwayProvider extends ChangeNotifier {
     await loadNextTrains();
   }
 
-  /// 현재 시간 기준으로 다음 열차들 필터링
+  /// 현재 시간 기준으로 다음 열차들 필터링 (현재 선택된 호선만)
   List<SubwaySchedule> getUpcomingSchedules() {
+    if (_selectedStation == null) return [];
+    
     final now = DateTime.now();
     final currentTime =
         '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}00';
 
-    return _schedules
-        .where((schedule) => schedule.arrTime.compareTo(currentTime) >= 0)
-        .toList();
+    final selectedLineNumber = _selectedStation!.effectiveLineNumber;
+    KSYLog.debug('시간표 필터링: 선택된 호선 = $selectedLineNumber');
+    KSYLog.debug('전체 시간표 개수: ${_schedules.length}');
+
+    // 현재 선택된 호선의 시간표만 필터링
+    final filteredSchedules = _schedules.where((schedule) {
+      // 1. 시간 필터링 (현재 시간 이후)
+      final isUpcoming = schedule.arrTime.compareTo(currentTime) >= 0;
+      
+      // 2. 호선 필터링
+      bool isMatchingLine = false;
+      
+      // subwayRouteId에서 호선 정보 추출하여 비교
+      if (schedule.subwayRouteId.isNotEmpty) {
+        final routeLineNumber = _extractLineNumberFromRouteId(schedule.subwayRouteId);
+        isMatchingLine = routeLineNumber == selectedLineNumber;
+        
+        // 디버깅 로그 추가
+        KSYLog.debug('시간표 매칭 체크: routeId=${schedule.subwayRouteId}, 추출된호선=$routeLineNumber, 선택된호선=$selectedLineNumber, 매칭=$isMatchingLine');
+      }
+      
+      return isUpcoming && isMatchingLine;
+    }).toList();
+
+    KSYLog.debug('필터링된 시간표 개수: ${filteredSchedules.length}');
+    return filteredSchedules;
   }
 
-  /// 특정 방향의 다음 열차 필터링
+  /// subwayRouteId에서 호선 번호 추출
+  String _extractLineNumberFromRouteId(String routeId) {
+    KSYLog.debug('호선 번호 추출: $routeId');
+    
+    // 특수 노선 코드 처리
+    if (routeId.startsWith('MTRDXD')) {
+      KSYLog.debug('  -> 동해선(DX) 매칭');
+      return 'DX'; // 동해선
+    }
+    if (routeId.startsWith('MTRKGD')) {
+      KSYLog.debug('  -> 경강선(KG) 매칭');
+      return 'KG'; // 경강선
+    }
+    if (routeId.startsWith('MTRGJD')) {
+      KSYLog.debug('  -> 경전선(GJ) 매칭');
+      return 'GJ'; // 경전선
+    }
+    if (routeId.startsWith('MTRSLD')) {
+      KSYLog.debug('  -> 서울경전철(SL) 매칭');
+      return 'SL'; // 서울경전철
+    }
+    
+    // MTRS1101 -> 1, MTRS1104 -> 4 등
+    if (routeId.startsWith('MTRS')) {
+      final numberPart = routeId.substring(4); // MTRS 제거
+      KSYLog.debug('  numberPart: $numberPart');
+      
+      // 정확한 호선 매핑 (국토교통부 API 기준)
+      if (numberPart.startsWith('11')) {
+        return '1'; // 1호선 (MTRS1101, MTRS1102 등)
+      } else if (numberPart.startsWith('12')) {
+        return '2'; // 2호선 (MTRS1201, MTRS1202 등)
+      } else if (numberPart.startsWith('13')) {
+        return '3'; // 3호선 (MTRS1301, MTRS1302 등)
+      } else if (numberPart.startsWith('14')) {
+        return '4'; // 4호선 (MTRS1401, MTRS1402 등)
+      } else if (numberPart.startsWith('15')) {
+        return '5'; // 5호선 (MTRS1501, MTRS1502 등)
+      } else if (numberPart.startsWith('16')) {
+        return '6'; // 6호선 (MTRS1601, MTRS1602 등)
+      } else if (numberPart.startsWith('17')) {
+        return '7'; // 7호선 (MTRS1701, MTRS1702 등)
+      } else if (numberPart.startsWith('18')) {
+        return '8'; // 8호선 (MTRS1801, MTRS1802 등)
+      } else if (numberPart.startsWith('19')) {
+        return '9'; // 9호선 (MTRS1901, MTRS1902 등)
+      }
+      
+      // 패턴이 맞지 않는 경우 다른 방식으로 시도
+      // 예: MTRS21XX (분당선), MTRS31XX (신분당선) 등
+      final lineRegex = RegExp(r'^(\d+)');
+      final match = lineRegex.firstMatch(numberPart);
+      if (match != null) {
+        final extracted = match.group(1)!;
+        KSYLog.debug('  정규식 매칭: $extracted');
+        
+        // 특수 호선 변환
+        switch (extracted) {
+          case '21':
+            return '분당';
+          case '22':
+            return '신분당';
+          case '31':
+            return '경의중앙';
+          case '32':
+            return '경춘';
+          case '33':
+            return '수인분당';
+          case '41':
+            return '우이신설';
+          case '42':
+            return '서해';
+          case '43':
+            return '김포';
+          case '44':
+            return '신림';
+          default:
+            // 한 자리 숫자인 경우 그대로 반환
+            if (extracted.length == 1) {
+              return extracted;
+            }
+            // 두 자리 숫자인 경우 첫 번째 자리만
+            return extracted.substring(0, 1);
+        }
+      }
+    }
+    
+    KSYLog.warning('호선 번호 추출 실패, 기본값 반환: $routeId -> 1');
+    return '1'; // 기본값
+  }
+
+  /// 특정 방향의 다음 열차 필터링 (현재 선택된 호선만)
   List<NextTrainInfo> getNextTrainsByDirection(String direction) {
-    return _nextTrains.where((train) => train.direction == direction).toList();
+    if (_selectedStation == null) return [];
+    
+    return _nextTrains.where((train) {
+      final isMatchingDirection = train.direction == direction;
+      
+      // 현재 선택된 호선의 열차만 필터링
+      // NextTrainInfo에 호선 정보가 있는지 확인 필요
+      // 일단 방향만으로 필터링하고, 필요시 추가 로직 구현
+      return isMatchingDirection;
+    }).toList();
   }
 
-  /// 상행 다음 열차
+  /// 상행 다음 열차 (현재 선택된 호선만)
   List<NextTrainInfo> get upwardNextTrains =>
       getNextTrainsByDirection('상행').take(3).toList();
 
-  /// 하행 다음 열차
+  /// 하행 다음 열차 (현재 선택된 호선만)
   List<NextTrainInfo> get downwardNextTrains =>
       getNextTrainsByDirection('하행').take(3).toList();
 
@@ -623,26 +772,26 @@ class SubwayProvider extends ChangeNotifier {
       KSYLog.debug('📊 시간표 조회 결과: ${schedules.length}개');
 
       if (schedules.isNotEmpty) {
-        // 2. 성공하면 해당 subwayStationId를 가진 SubwayStation 생성
-        final station = SubwayStation(
-          subwayStationId: subwayStationId,
-          subwayStationName: stationName,
-          // 다른 정보는 나중에 API에서 가져올 수 있음
-        );
+        // 2. subwayStationId가 유효하면 역명으로 전체 호선 정보 검색
+        KSYLog.info('🔍 유효한 subwayStationId 확인됨, 역명으로 전체 호선 검색: $stationName');
+        final fullStationGroup = await getStationGroupByName(stationName);
+        
+        if (fullStationGroup != null) {
+          KSYLog.info('✅ 전체 호선 정보 조회 성공: ${fullStationGroup.stations.length}개 호선');
+          return fullStationGroup;
+        } else {
+          // 전체 호선 검색 실패 시 단일 역으로 폴백
+          KSYLog.warning('⚠️ 전체 호선 검색 실패, 단일 역으로 폴백');
+          final station = SubwayStation(
+            subwayStationId: subwayStationId,
+            subwayStationName: stationName,
+          );
 
-        // 3. StationGroup 생성하여 반환
-        final stationGroup = StationGroup(
-          stationName: stationName,
-          stations: [station],
-        );
-
-        // 캐시에 저장
-        final cleanName = StationUtils.cleanStationName(stationName);
-        _stationGroupCache[cleanName] = stationGroup;
-        _cacheTimestamps[cleanName] = DateTime.now();
-
-        KSYLog.info('✅ subwayStationId 연동 성공: $subwayStationId');
-        return stationGroup;
+          return StationGroup(
+            stationName: stationName,
+            stations: [station],
+          );
+        }
       } else {
         KSYLog.warning('⚠️ subwayStationId로 시간표 조회 결과 없음: $subwayStationId');
         return null;

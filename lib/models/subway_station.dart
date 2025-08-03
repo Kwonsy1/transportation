@@ -52,19 +52,25 @@ class SubwayStation {
     final coordinates = json['coordinates'] as Map<String, dynamic>?;
     final latitude = coordinates?['latitude'] as double?;
     final longitude = coordinates?['longitude'] as double?;
-    
-    // subwayStationId 추출 디버깅
-    final subwayStationId = json['subway_station_id']?.toString() ?? json['station_code']?.toString() ?? json['id']?.toString() ?? '';
-    KSYLog.debug('SubwayStation.fromNearbyApiJson - name: ${json['name']}, subway_station_id: ${json['subway_station_id']}, station_code: ${json['station_code']}, id: ${json['id']}, final: $subwayStationId');
-    
+
+    // subwayStationId 추출 - API가 camelCase로 변경됨
+    final subwayStationId =
+        json['subwayStationId']?.toString() ??  // camelCase로 변경
+        json['stationCode']?.toString() ??      // camelCase로 변경
+        json['id']?.toString() ??
+        '';
+    KSYLog.debug(
+      'SubwayStation.fromNearbyApiJson - stationName: ${json['stationName']}, subwayStationId: ${json['subwayStationId']}, stationCode: ${json['stationCode']}, id: ${json['id']}, final: $subwayStationId',
+    );
+
     return SubwayStation(
       subwayStationId: subwayStationId,
-      subwayStationName: json['name'] as String? ?? '',
-      subwayRouteName: json['line_number'] as String?,
-      lineNumber: json['line_number'] as String?,
+      subwayStationName: json['stationName'] as String? ?? '',  // camelCase로 변경
+      subwayRouteName: json['lineNumber'] as String?,
+      lineNumber: json['lineNumber'] as String?,
       latitude: latitude,
       longitude: longitude,
-      dist: json['distance_km'] as double?,
+      dist: json['distanceKm'] as double?,
     );
   }
 
@@ -84,10 +90,18 @@ class SubwayStation {
   // Factory constructor for the custom server API response (커스텀 서버 API)
   factory SubwayStation.fromServerApiJson(Map<String, dynamic> json) {
     return SubwayStation(
-      subwayStationId: json['subwayStationId']?.toString() ?? json['subway_station_id']?.toString() ?? '',
-      subwayStationName: json['name']?.toString() ?? json['subwayStationName']?.toString() ?? '',
-      subwayRouteName: json['subwayRouteName']?.toString() ?? json['lineNumber']?.toString(),
-      lineNumber: json['lineNumber']?.toString() ?? json['line_number']?.toString(),
+      subwayStationId:
+          json['subwayStationId']?.toString() ??
+          json['subway_station_id']?.toString() ??
+          '',
+      subwayStationName:
+          json['name']?.toString() ??
+          json['subwayStationName']?.toString() ??
+          '',
+      subwayRouteName:
+          json['subwayRouteName']?.toString() ?? json['lineNumber']?.toString(),
+      lineNumber:
+          json['lineNumber']?.toString() ?? json['line_number']?.toString(),
       latitude: SubwayStation._safeParseDouble(json['latitude']),
       longitude: SubwayStation._safeParseDouble(json['longitude']),
       dist: SubwayStation._safeParseDouble(json['dist']),
@@ -106,14 +120,14 @@ class SubwayStation {
       if (numberMatch != null) {
         return numberMatch.group(1)!;
       }
-      
+
       // 호선이 붙지 않은 숫자의 경우 (01 -> 1, 02 -> 2)
       final pureNumberRegex = RegExp(r'^0?(\d+)$');
       final pureNumberMatch = pureNumberRegex.firstMatch(lineNumber!);
       if (pureNumberMatch != null) {
         return pureNumberMatch.group(1)!;
       }
-      
+
       // 기타 특수 호선은 그대로 반환
       return lineNumber!;
     }
@@ -152,7 +166,8 @@ class SubwayStation {
     };
 
     for (final entry in specialLines.entries) {
-      if (subwayRouteName! == entry.key) { // 정확히 일치하는 경우
+      if (subwayRouteName! == entry.key) {
+        // 정확히 일치하는 경우
         return entry.value;
       }
     }
@@ -220,16 +235,34 @@ class SubwayExitBusRoute {
     // API 응답 필드명 디버깅
     KSYLog.debug('SubwayExitBusRoute JSON keys: ${json.keys.toList()}');
     KSYLog.object('SubwayExitBusRoute JSON data', json);
-    
+
     return SubwayExitBusRoute(
       subwayStationId: json['subwayStationId']?.toString() ?? '',
-      subwayStationName: json['subwayStationName']?.toString() ?? json['subwayStationNm']?.toString() ?? '',
-      exitNo: json['exitNo']?.toString() ?? json['subwayExitNo']?.toString() ?? json['exitNumber']?.toString() ?? '',
+      subwayStationName:
+          json['subwayStationName']?.toString() ??
+          json['subwayStationNm']?.toString() ??
+          '',
+      exitNo:
+          json['exitNo']?.toString() ??
+          json['subwayExitNo']?.toString() ??
+          json['exitNumber']?.toString() ??
+          '',
       // 실제 API 필드명에 맞게 수정
-      busRouteNm: json['busRouteNm']?.toString() ?? json['busRouteName']?.toString() ?? json['routeName']?.toString() ?? json['dirDesc']?.toString() ?? '',
+      busRouteNm:
+          json['busRouteNm']?.toString() ??
+          json['busRouteName']?.toString() ??
+          json['routeName']?.toString() ??
+          json['dirDesc']?.toString() ??
+          '',
       sectionYn: json['sectionYn']?.toString() ?? 'N',
-      startSttnNm: json['startSttnNm']?.toString() ?? json['startStationNm']?.toString() ?? '',
-      endSttnNm: json['endSttnNm']?.toString() ?? json['endStationNm']?.toString() ?? '',
+      startSttnNm:
+          json['startSttnNm']?.toString() ??
+          json['startStationNm']?.toString() ??
+          '',
+      endSttnNm:
+          json['endSttnNm']?.toString() ??
+          json['endStationNm']?.toString() ??
+          '',
     );
   }
 
@@ -284,16 +317,38 @@ class SubwayExitFacility {
     // API 응답 필드명 디버깅
     KSYLog.debug('SubwayExitFacility JSON keys: ${json.keys.toList()}');
     KSYLog.object('SubwayExitFacility JSON data', json);
-    
+
     return SubwayExitFacility(
       subwayStationId: json['subwayStationId']?.toString() ?? '',
-      subwayStationName: json['substationName']?.toString() ?? json['subwayStationNm']?.toString() ?? '',
-      exitNo: json['exitNo']?.toString() ?? json['subwayExitNo']?.toString() ?? json['exitNumber']?.toString() ?? '',
+      subwayStationName:
+          json['substationName']?.toString() ??
+          json['subwayStationNm']?.toString() ??
+          '',
+      exitNo:
+          json['exitNo']?.toString() ??
+          json['subwayExitNo']?.toString() ??
+          json['exitNumber']?.toString() ??
+          '',
       // dirDesc가 실제 시설명인 것 같습니다
-      cfFacilityNm: json['dirDesc']?.toString() ?? json['cfFacilityNm']?.toString() ?? json['facilityName']?.toString() ?? '',
-      cfFacilityClss: json['cfFacilityClss']?.toString() ?? json['facilityClass']?.toString() ?? json['category']?.toString() ?? '시설',
-      useTime: json['useTime']?.toString() ?? json['operatingTime']?.toString() ?? '',
-      phoneNumber: json['phoneNumber']?.toString() ?? json['phoneNo']?.toString() ?? json['telNo']?.toString() ?? '',
+      cfFacilityNm:
+          json['dirDesc']?.toString() ??
+          json['cfFacilityNm']?.toString() ??
+          json['facilityName']?.toString() ??
+          '',
+      cfFacilityClss:
+          json['cfFacilityClss']?.toString() ??
+          json['facilityClass']?.toString() ??
+          json['category']?.toString() ??
+          '시설',
+      useTime:
+          json['useTime']?.toString() ??
+          json['operatingTime']?.toString() ??
+          '',
+      phoneNumber:
+          json['phoneNumber']?.toString() ??
+          json['phoneNo']?.toString() ??
+          json['telNo']?.toString() ??
+          '',
     );
   }
 

@@ -159,19 +159,16 @@ class Coordinates {
 /// 근처 역 그룹화 응답 모델
 @JsonSerializable()
 class GroupedNearbyStationResponse {
-  /// 검색 반경 (km)
-  @JsonKey(name: 'search_radius_km')
+  /// 검색 반경 (km) - API가 camelCase로 변경됨
   final double searchRadiusKm;
 
   /// 역 목록
   final List<GroupedNearbyStation> stations;
 
-  /// 총 개수
-  @JsonKey(name: 'total_count')
+  /// 총 개수 - API가 camelCase로 변경됨
   final int totalCount;
 
-  /// 중심 좌표
-  @JsonKey(name: 'center_coordinates')
+  /// 중심 좌표 - API가 camelCase로 변경됨
   final SearchCenter centerCoordinates;
 
   const GroupedNearbyStationResponse({
@@ -190,15 +187,13 @@ class GroupedNearbyStationResponse {
 /// 그룹화된 근처 역 정보
 @JsonSerializable()
 class GroupedNearbyStation {
-  /// 역명
-  @JsonKey(name: 'station_name')
+  /// 역명 (API가 camelCase로 변경됨)
   final String? stationName;
 
   /// 좌표
   final Coordinates? coordinates;
 
   /// 거리 (km)
-  @JsonKey(name: 'distance_km', defaultValue: 0.0)
   final double distanceKm;
 
   /// 주소
@@ -208,7 +203,6 @@ class GroupedNearbyStation {
   final String? region;
 
   /// 역 개수
-  @JsonKey(name: 'station_count', defaultValue: 0)
   final int stationCount;
 
   /// 상세 정보 (진실의 원천)

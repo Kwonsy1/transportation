@@ -202,14 +202,26 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
         }
 
         for (final detail in group.details) {
+          // 좌표 유효성 추가 검증
+          final lat = group.coordinates!.latitude;
+          final lng = group.coordinates!.longitude;
+
+          if (lat == 0.0 || lng == 0.0 || lat.isNaN || lng.isNaN) {
+            KSYLog.warning(
+              '⚠️ 잘못된 좌표 값: ${group.stationName} - lat: $lat, lng: $lng',
+            );
+            continue;
+          }
+
           stations.add(
             SubwayStation(
               subwayStationId: detail.subwayStationId ?? '',
-              subwayStationName: group.stationName ?? '이름 없음', // null일 경우 기본값 제공
+              subwayStationName:
+                  group.stationName ?? '이름 없음', // null일 경우 기본값 제공
               subwayRouteName: detail.lineNumber ?? '미분류',
               lineNumber: detail.lineNumber ?? '미분류',
-              latitude: group.coordinates!.latitude,
-              longitude: group.coordinates!.longitude,
+              latitude: lat,
+              longitude: lng,
               dist: group.distanceKm,
             ),
           );
@@ -228,6 +240,19 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
             final lat = s.latitude ?? 0.0;
             final lng = s.longitude ?? 0.0;
 
+            // 추가 유효성 검사
+            if (lat == 0.0 ||
+                lng == 0.0 ||
+                lat.isNaN ||
+                lng.isNaN ||
+                lat.isInfinite ||
+                lng.isInfinite) {
+              KSYLog.warning(
+                '⚠️ 변환 시 잘못된 좌표: ${s.subwayStationName} - lat: $lat, lng: $lng',
+              );
+              return null;
+            }
+
             KSYLog.debug(
               '역 변환: ${s.subwayStationName}, 호선: $lineName, 좌표: ($lat, $lng), subwayStationId: ${s.subwayStationId}',
             );
@@ -241,9 +266,8 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
               subwayStationId: s.subwayStationId, // 국토교통부 API용 ID
             );
           })
-          .where(
-            (station) => station.latitude != 0.0 && station.longitude != 0.0,
-          )
+          .where((station) => station != null)
+          .cast<SeoulSubwayStation>()
           .toList();
 
       // 마커 업데이트
@@ -782,12 +806,41 @@ class _NaverNativeMapScreenState extends State<NaverNativeMapScreen> {
           .effectiveLineNumber;
       SubwayStation? initialStation;
 
-      // 정확한 호선 매칭 시도
+      KSYLog.debug('🎯 클릭한 호선: $clickedLineNumber');
+
+      // 정확한 호선 매칭 시도 (다양한 방식으로)
       final validStationGroup = stationGroup;
-      initialStation = validStationGroup.stations.firstWhere(
-        (station) => station.effectiveLineNumber == clickedLineNumber,
-        orElse: () => validStationGroup.stations.first,
-      );
+
+      // 1차: 정확한 매칭
+      initialStation = validStationGroup.stations
+          .where((station) => station.effectiveLineNumber == clickedLineNumber)
+          .firstOrNull;
+
+      // 2차: 부분 매칭 (01호선 vs 1호선 같은 경우)
+      if (initialStation == null) {
+        final cleanClickedLine = clickedLineNumber
+            .replaceAll(RegExp(r'^0+'), '')
+            .replaceAll('호선', '');
+        initialStation = validStationGroup.stations.where((station) {
+          final cleanStationLine = station.effectiveLineNumber
+              .replaceAll(RegExp(r'^0+'), '')
+              .replaceAll('호선', '');
+          return cleanStationLine == cleanClickedLine;
+        }).firstOrNull;
+      }
+
+      // 3차: subwayStationId로 매칭 (동일한 ID인 경우)
+      if (initialStation == null && seoulStation.subwayStationId != null) {
+        initialStation = validStationGroup.stations
+            .where(
+              (station) =>
+                  station.subwayStationId == seoulStation.subwayStationId,
+            )
+            .firstOrNull;
+      }
+
+      // 최종: 첫 번째 역 사용
+      initialStation ??= validStationGroup.stations.first;
 
       KSYLog.info(
         '✅ 지도 연동 성공: ${validStationGroup.stationName} (호선 ${validStationGroup.stations.length}개, 초기 선택: ${initialStation.effectiveLineNumber})',

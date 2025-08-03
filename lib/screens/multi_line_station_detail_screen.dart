@@ -78,11 +78,13 @@ class _MultiLineStationDetailScreenState
     final provider = context.read<SubwayProvider>();
     final dailyTypeCode = provider.getCurrentDailyTypeCode();
 
-    KSYLog.debug('시간표 로드: ${_selectedStation.subwayStationId}, 요일: $dailyTypeCode');
+    KSYLog.debug(
+      '시간표 로드: ${_selectedStation.subwayStationId}, 요일: $dailyTypeCode, 호선: ${_selectedStation.effectiveLineNumber}',
+    );
     
     await provider.loadSchedules(
       dailyTypeCode: dailyTypeCode,
-      upDownTypeCode: ApiConstants.upDirection,
+      upDownTypeCode: ApiConstants.upDirection, // 상행 방향으로 로드
     );
     
     KSYLog.debug('시간표 로드 완료: ${provider.schedules.length}개');
@@ -108,7 +110,8 @@ class _MultiLineStationDetailScreenState
     KSYLog.info('호선 탭 클릭: ${station.effectiveLineNumber} (ID: ${station.subwayStationId})');
     KSYLog.debug('현재 선택된 역: ${_selectedStation.effectiveLineNumber} (ID: ${_selectedStation.subwayStationId})');
     
-    if (_selectedStation.subwayStationId != station.subwayStationId) {
+    // 호선 번호로 비교 (같은 역의 다른 호선이므로 effectiveLineNumber로 비교)
+    if (_selectedStation.effectiveLineNumber != station.effectiveLineNumber) {
       KSYLog.info('호선 변경: ${_selectedStation.effectiveLineNumber} → ${station.effectiveLineNumber}');
       
       // setState를 먼저 호출하여 UI 업데이트
@@ -230,12 +233,14 @@ class _MultiLineStationDetailScreenState
   Widget _buildStationHeader() {
     return Consumer<SubwayProvider>(
       builder: (context, provider, child) {
-        final currentStation = provider.selectedStation ?? _selectedStation;
+        // 로컬 _selectedStation을 우선 사용 (즉시성을 위해)
+        final currentStation = _selectedStation;
         KSYLog.debug('UI: 헤더 빌드 - ${currentStation.subwayStationName} (${currentStation.effectiveLineNumber})');
+        KSYLog.debug('Provider 헤더 역 = ${provider.selectedStation?.effectiveLineNumber ?? 'null'}');
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
         // 현재 선택된 노선 정보
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -301,8 +306,8 @@ class _MultiLineStationDetailScreenState
             return const SizedBox.shrink();
           },
         ),
-      ],
-    );
+          ],
+        );
       },
     );
   }
@@ -315,19 +320,21 @@ class _MultiLineStationDetailScreenState
     // Consumer 내부에서 호출되므로 provider에 접근 가능
     return Consumer<SubwayProvider>(
       builder: (context, provider, child) {
-        final currentSelectedStation = provider.selectedStation ?? _selectedStation;
+        // 로컬 _selectedStation을 우선 사용 (즉시성을 위해)
+        final currentSelectedStation = _selectedStation;
         KSYLog.debug('탭 빌드: 현재 선택된 역 = ${currentSelectedStation.effectiveLineNumber} (ID: ${currentSelectedStation.subwayStationId})');
+        KSYLog.debug('Provider 선택된 역 = ${provider.selectedStation?.effectiveLineNumber ?? 'null'}');
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Row(
             children: [
               const Icon(Icons.info_outline, color: Colors.blue, size: 20),
@@ -350,11 +357,12 @@ class _MultiLineStationDetailScreenState
             runSpacing: 8,
             children: widget.stationGroup.stations.map((station) {
               final isSelected =
-                  currentSelectedStation.subwayStationId == station.subwayStationId;
+                  currentSelectedStation.effectiveLineNumber == station.effectiveLineNumber;
               final lineNumber = station.effectiveLineNumber;
               final lineColor = SubwayUtils.getLineColor(lineNumber);
               
               KSYLog.debug('버튼 렌더링: ${station.effectiveLineNumber} (ID: ${station.subwayStationId}) - 선택됨: $isSelected');
+              KSYLog.debug('  - 현재 선택: "${currentSelectedStation.effectiveLineNumber}" vs 버튼: "${station.effectiveLineNumber}"');
 
               return GestureDetector(
                 onTap: () => _onLineSelected(station),
@@ -415,9 +423,9 @@ class _MultiLineStationDetailScreenState
               );
             }).toList(),
           ),
-        ],
-      ),
-    );
+            ],
+          ),
+        );
       },
     );
   }
