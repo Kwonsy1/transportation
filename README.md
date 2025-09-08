@@ -16,12 +16,12 @@ Flutter로 개발된 국토교통부 지하철 정보 API를 활용한 지하철
 ## 🛠️ 사용된 기술
 
 - **Framework**: Flutter 3.8.1+
-- **상태 관리**: Provider
-- **HTTP 통신**: Dio
-- **지도**: 네이버 지도 네이티브 SDK (flutter_naver_map)
-- **로컬 저장소**: Hive (고성능 NoSQL 데이터베이스)
-- **위치 서비스**: Geolocator, Permission Handler
-- **JSON 직렬화**: json_annotation, json_serializable
+- **상태 관리**: Provider 6.1.1
+- **HTTP 통신**: Dio 5.4.0
+- **지도**: 네이버 지도 네이티브 SDK 1.4.0 (flutter_naver_map)
+- **로컬 저장소**: Hive 2.2.3 (고성능 NoSQL 데이터베이스)
+- **위치 서비스**: Geolocator 10.1.0, Permission Handler 11.1.0
+- **JSON 직렬화**: json_annotation 4.8.1, json_serializable 6.7.1
 
 ## 📋 필요한 API 키
 
@@ -128,16 +128,18 @@ lib/
 │   └── hive_subway_service.dart             # Hive 지하철 정보 서비스
 ├── providers/          # 상태 관리 (Provider)
 │   ├── subway_provider.dart
-│   └── location_provider.dart
+│   ├── location_provider.dart
+│   └── seoul_subway_provider.dart     # 서울 지하철 전용 Provider
 ├── screens/            # 화면들
 │   ├── home_screen.dart
 │   ├── station_search_screen.dart
-│   ├── station_detail_screen.dart
+│   ├── multi_line_station_detail_screen.dart  # 다중 호선 지원 역 상세화면
 │   ├── nearby_stations_screen.dart
-│   ├── naver_native_map_screen.dart  # 네이버 네이티브 지도 (신규)
-│   ├── map_screen.dart               # 네이버 지도 웹뷰 (기존)
+│   ├── naver_native_map_screen.dart  # 네이버 네이티브 지도
 │   ├── google_map_screen.dart        # OpenStreetMap (대체용)
-│   └── favorites_screen.dart
+│   ├── favorites_screen.dart
+│   ├── favorites_debug_screen.dart   # 즐겨찾기 디버깅 화면
+│   └── seoul_subway_test_screen.dart # 서울 지하철 테스트 화면
 ├── widgets/            # 재사용 가능한 위젯들
 │   ├── station_card.dart
 │   ├── next_train_card.dart
@@ -169,7 +171,7 @@ Flutter 3.8.1+ 권장
 ```yaml
 dependencies:
   dio: ^5.4.0                    # HTTP 클라이언트
-  flutter_naver_map: ^1.3.2      # 네이버 지도 네이티브 SDK
+  flutter_naver_map: ^1.4.0      # 네이버 지도 네이티브 SDK (업데이트됨)
   webview_flutter: ^4.4.2       # 웹뷰 (대체 지도 서비스용)
   geolocator: ^10.1.0           # 위치 서비스
   permission_handler: ^11.1.0    # 권한 관리
@@ -194,7 +196,10 @@ dev_dependencies:
 
 ## 🚨 주의사항
 
-1. **API 키 보안**: 실제 배포 시에는 API 키를 안전하게 관리해야 합니다.
+1. **API 키 보안**: 
+   - ⚠️ **중요**: 현재 소스코드에 API 키가 하드코딩되어 있습니다
+   - 실제 배포 시에는 환경 변수나 별도 설정 파일로 분리 필요
+   - `.env` 파일 사용 및 `.gitignore`에 추가 권장
 2. **위치 권한**: Android/iOS에서 위치 권한이 필요합니다.
 3. **인터넷 연결**: 모든 기능은 인터넷 연결이 필요합니다.
 4. **API 제한**: 공공데이터 API는 일일 호출 제한이 있을 수 있습니다.
@@ -285,7 +290,9 @@ cd ios && pod install && cd ..  # iOS만
 ```
 
 ### API 연결 문제
-1. API 키가 올바른지 확인
+1. **API 키 보안 이슈**:
+   - `lib/constants/api_constants.dart`에서 API 키가 올바른지 확인
+   - ⚠️ 소스코드에 노출된 API 키를 환경변수로 분리 권장
 2. 네트워크 연결 상태 확인
 3. 공공데이터 API 서비스 상태 확인
 4. API 호출 횟수 제한 확인
@@ -293,6 +300,18 @@ cd ios && pod install && cd ..  # iOS만
 ### 데이터 없음 문제
 - 국토교통부 API는 키워드 기반 검색이므로 정확한 역명 입력이 필요합니다.
 - 일부 역의 경우 데이터가 없을 수 있습니다.
+
+### 보안 개선 방법
+1. **API 키 분리**:
+```bash
+# .env 파일 생성
+echo "SUBWAY_API_KEY=your_api_key_here" > .env
+echo "NAVER_MAP_CLIENT_ID=your_client_id" >> .env
+echo "NAVER_MAP_CLIENT_SECRET=your_client_secret" >> .env
+
+# .gitignore에 .env 추가
+echo ".env" >> .gitignore
+```
 
 ## 🔄 API 비교: 서울시 vs 국토교통부
 
